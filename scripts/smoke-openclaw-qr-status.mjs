@@ -1,0 +1,30 @@
+const base = process.env.SMOKE_BASE_URL || 'http://127.0.0.1:3301';
+
+async function request(path, init) {
+  const response = await fetch(`${base}${path}`, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      'x-user-email': 'admin@example.com',
+      ...(init?.headers ?? {}),
+    },
+  });
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : null;
+  console.log(`\n# ${init?.method || 'GET'} ${path}`);
+  console.log(`status=${response.status}`);
+  console.log(JSON.stringify(data, null, 2).slice(0, 1600));
+  if (!response.ok) throw new Error(`${path} failed with ${response.status}`);
+  return data;
+}
+
+await request('/api/v1/instances/ins_demo/openclaw/channels/whatsapp/connect', {
+  method: 'POST',
+  body: JSON.stringify({ fields: { accountName: 'smoke-whatsapp' } }),
+});
+
+const result = await request('/api/v1/instances/ins_demo/openclaw/channels/whatsapp/runtime-status');
+if (result.data?.channelType !== 'whatsapp') throw new Error('runtime status should be for whatsapp');
+if (result.data?.qrSupported !== true) throw new Error('whatsapp qrSupported should be true');
+if (!String(result.data?.sessionStatus ?? '').length) throw new Error('sessionStatus missing');
+console.log('OpenClaw QR status smoke passed');

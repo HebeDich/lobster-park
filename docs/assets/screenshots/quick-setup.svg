@@ -1,0 +1,14 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="900" rx="28" fill="#0D1222"/>
+  <rect x="48" y="48" width="1504" height="804" rx="24" fill="#131B31" stroke="#263352"/>
+  <rect x="96" y="96" width="1408" height="88" rx="18" fill="#1B2541"/>
+  <rect x="96" y="220" width="1408" height="560" rx="20" fill="#18213A"/>
+  <rect x="148" y="280" width="520" height="86" rx="16" fill="#24355A"/>
+  <rect x="148" y="392" width="520" height="86" rx="16" fill="#24355A"/>
+  <rect x="148" y="504" width="520" height="86" rx="16" fill="#24355A"/>
+  <rect x="732" y="280" width="640" height="310" rx="18" fill="#223252"/>
+  <rect x="1188" y="716" width="184" height="44" rx="12" fill="#6D7CFF"/>
+  <text x="800" y="395" fill="#F5F7FF" font-size="48" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">快速配置截图占位</text>
+  <text x="800" y="455" fill="#99A7C2" font-size="24" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">建议替换为模型接入 / 连通性测试 / 完成配置流程截图</text>
+  <text x="800" y="780" fill="#6F7D99" font-size="22" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">docs/assets/screenshots/quick-setup.svg</text>
+</svg>

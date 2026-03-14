@@ -1,0 +1,16 @@
+# Platform-approved bundled plugins for Lobster Park runtime image
+whatsapp
+telegram
+discord
+slack
+feishu
+line
+googlechat
+signal
+msteams
+matrix
+mattermost
+nextcloud-talk
+nostr
+synology-chat
+zalo

@@ -1,0 +1,812 @@
+openapi: 3.1.0
+info:
+  title: Lobster Park API
+  version: 1.1.0
+  description: OpenAPI skeleton for Lobster Park V1.1
+servers:
+  - url: https://lobster-park.internal
+security:
+  - cookieAuth: []
+paths:
+  /api/v1/me:
+    get:
+      summary: Get current user context
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeCurrentUser'
+  /api/v1/instances:
+    get:
+      summary: List instances
+      operationId: listInstances
+      parameters:
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+        - in: query
+          name: keyword
+          schema: { type: string }
+        - in: query
+          name: lifecycleStatus
+          schema:
+            $ref: '#/components/schemas/InstanceLifecycleStatus'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePagedInstances'
+    post:
+      summary: Create instance
+      operationId: createInstance
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInstanceRequest'
+      responses:
+        '202':
+          description: accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeJobAccepted'
+  /api/v1/instances/{instanceId}:
+    get:
+      summary: Get instance detail
+      operationId: getInstance
+      parameters:
+        - $ref: '#/components/parameters/InstanceId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeInstance'
+    delete:
+      summary: Delete instance
+      operationId: deleteInstance
+      parameters:
+        - $ref: '#/components/parameters/InstanceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [confirmText]
+              properties:
+                confirmText: { type: string }
+      responses:
+        '202':
+          description: accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeJobAccepted'
+  /api/v1/instances/{instanceId}/start:
+    post:
+      summary: Start instance
+      operationId: startInstance
+      parameters:
+        - $ref: '#/components/parameters/InstanceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeJobAccepted'
+  /api/v1/instances/{instanceId}/stop:
+    post:
+      summary: Stop instance
+      operationId: stopInstance
+      parameters:
+        - $ref: '#/components/parameters/InstanceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeJobAccepted'
+  /api/v1/instances/{instanceId}/restart:
+    post:
+      summary: Restart instance
+      operationId: restartInstance
+      parameters:
+        - $ref: '#/components/parameters/InstanceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeJobAccepted'
+  /api/v1/instances/{instanceId}/config/draft:
+    get:
+      summary: Get config draft
+      operationId: getConfigDraft
+      parameters:
+        - $ref: '#/components/parameters/InstanceId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeConfigDraft'
+    put:
+      summary: Save config draft
+      operationId: saveConfigDraft
+      parameters:
+        - $ref: '#/components/parameters/InstanceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveConfigDraftRequest'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeConfigDraft'
+  /api/v1/instances/{instanceId}/config/validate:
+    post:
+      summary: Validate config
+      operationId: validateConfig
+      parameters:
+        - $ref: '#/components/parameters/InstanceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+      responses:
+        '202':
+          description: accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeJobAccepted'
+  /api/v1/instances/{instanceId}/config/publish:
+    post:
+      summary: Publish config
+      operationId: publishConfig
+      parameters:
+        - $ref: '#/components/parameters/InstanceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note: { type: string, maxLength: 500 }
+                forcePublish: { type: boolean, default: false }
+                confirmText: { type: string }
+      responses:
+        '202':
+          description: accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeJobAccepted'
+  /api/v1/instances/{instanceId}/config/versions:
+    get:
+      summary: List config versions
+      operationId: listConfigVersions
+      parameters:
+        - $ref: '#/components/parameters/InstanceId'
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePagedConfigVersions'
+  /api/v1/instances/{instanceId}/config/versions/{versionId}/rollback:
+    post:
+      summary: Rollback config version
+      operationId: rollbackConfigVersion
+      parameters:
+        - $ref: '#/components/parameters/InstanceId'
+        - $ref: '#/components/parameters/VersionId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [confirmText]
+              properties:
+                confirmText: { type: string }
+                note: { type: string }
+      responses:
+        '202':
+          description: accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeJobAccepted'
+  /api/v1/instances/{instanceId}/nodes:
+    get:
+      summary: List instance nodes
+      operationId: listInstanceNodes
+      parameters:
+        - $ref: '#/components/parameters/InstanceId'
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePagedNodes'
+  /api/v1/nodes/pairing-requests:
+    get:
+      summary: List pairing requests
+      operationId: listPairingRequests
+      parameters:
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePagedPairingRequests'
+  /api/v1/nodes/pairing-requests/{requestId}/approve:
+    post:
+      summary: Approve pairing request
+      operationId: approvePairingRequest
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePairingRequest'
+  /api/v1/nodes/pairing-requests/{requestId}/reject:
+    post:
+      summary: Reject pairing request
+      operationId: rejectPairingRequest
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePairingRequest'
+  /api/v1/instances/{instanceId}/health:
+    get:
+      summary: Get instance health
+      operationId: getInstanceHealth
+      parameters:
+        - $ref: '#/components/parameters/InstanceId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeHealth'
+  /api/v1/instances/{instanceId}/usage:
+    get:
+      summary: Get instance usage
+      operationId: getInstanceUsage
+      parameters:
+        - $ref: '#/components/parameters/InstanceId'
+        - in: query
+          name: from
+          schema: { type: string, format: date-time }
+        - in: query
+          name: to
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeUsage'
+  /api/v1/alerts:
+    get:
+      summary: List alerts
+      operationId: listAlerts
+      parameters:
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/AlertStatus'
+        - in: query
+          name: severity
+          schema:
+            $ref: '#/components/schemas/AlertSeverity'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePagedAlerts'
+  /api/v1/alerts/{alertId}/ack:
+    patch:
+      summary: Acknowledge alert
+      operationId: ackAlert
+      parameters:
+        - $ref: '#/components/parameters/AlertId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeAlert'
+  /api/v1/alerts/{alertId}/resolve:
+    patch:
+      summary: Resolve alert
+      operationId: resolveAlert
+      parameters:
+        - $ref: '#/components/parameters/AlertId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeAlert'
+  /api/v1/audits:
+    get:
+      summary: List audit logs
+      operationId: listAudits
+      parameters:
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePagedAudits'
+  /api/v1/jobs/{jobId}:
+    get:
+      summary: Get job detail
+      operationId: getJob
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeJob'
+  /health:
+    get:
+      summary: Liveness probe
+      operationId: getHealth
+      responses:
+        '200':
+          description: ok
+  /ready:
+    get:
+      summary: Readiness probe
+      operationId: getReady
+      responses:
+        '200':
+          description: ok
+        '503':
+          description: not ready
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      operationId: getMetrics
+      responses:
+        '200':
+          description: ok
+  /info:
+    get:
+      summary: Build info
+      operationId: getInfo
+      responses:
+        '200':
+          description: ok
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: lp_access
+  parameters:
+    PageNo:
+      in: query
+      name: pageNo
+      schema: { type: integer, minimum: 1, default: 1 }
+    PageSize:
+      in: query
+      name: pageSize
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    IdempotencyKey:
+      in: header
+      name: X-Idempotency-Key
+      required: true
+      schema: { type: string, minLength: 8, maxLength: 128 }
+    InstanceId:
+      in: path
+      name: instanceId
+      required: true
+      schema: { type: string }
+    VersionId:
+      in: path
+      name: versionId
+      required: true
+      schema: { type: string }
+    AlertId:
+      in: path
+      name: alertId
+      required: true
+      schema: { type: string }
+    JobId:
+      in: path
+      name: jobId
+      required: true
+      schema: { type: string }
+    RequestId:
+      in: path
+      name: requestId
+      required: true
+      schema: { type: string }
+  schemas:
+    EnvelopeBase:
+      type: object
+      properties:
+        requestId: { type: string }
+        code: { type: integer }
+        message: { type: string }
+    PagedMeta:
+      type: object
+      properties:
+        pageNo: { type: integer }
+        pageSize: { type: integer }
+        total: { type: integer }
+    InstanceLifecycleStatus:
+      type: string
+      enum: [draft, creating, create_failed, stopped, starting, running, unhealthy, updating, deleting, deleted]
+    ConfigVersionStatus:
+      type: string
+      enum: [draft, validating, validate_failed, ready_to_publish, publishing, publish_failed, active, rolled_back, archived]
+    PairingStatus:
+      type: string
+      enum: [pending, approved, rejected, expired]
+    NodeOnlineStatus:
+      type: string
+      enum: [online, offline, error, detached]
+    AlertStatus:
+      type: string
+      enum: [open, acked, resolved, suppressed]
+    AlertSeverity:
+      type: string
+      enum: [P1, P2, P3, P4]
+    CurrentUser:
+      type: object
+      properties:
+        userId: { type: string }
+        tenantId: { type: string }
+        displayName: { type: string }
+        roles:
+          type: array
+          items: { type: string }
+        permissions:
+          type: array
+          items: { type: string }
+    Instance:
+      type: object
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        ownerUserId: { type: string }
+        name: { type: string }
+        specCode: { type: string, enum: [S, M, L] }
+        runtimeVersion: { type: string }
+        lifecycleStatus:
+          $ref: '#/components/schemas/InstanceLifecycleStatus'
+        healthStatus: { type: string }
+        currentActiveVersionId: { type: string, nullable: true }
+    CreateInstanceRequest:
+      type: object
+      required: [name, specCode]
+      properties:
+        name: { type: string, maxLength: 64 }
+        description: { type: string, maxLength: 500 }
+        specCode: { type: string, enum: [S, M, L] }
+        templateId: { type: string, nullable: true }
+        runtimeVersion: { type: string, nullable: true }
+        autoStart: { type: boolean, default: false }
+    JobAccepted:
+      type: object
+      properties:
+        jobId: { type: string }
+        instanceId: { type: string }
+    Job:
+      type: object
+      properties:
+        id: { type: string }
+        jobType: { type: string }
+        jobStatus: { type: string, enum: [pending, running, success, failed, cancelled, dead_letter] }
+        progress: { type: integer, minimum: 0, maximum: 100 }
+        errorCode: { type: integer, nullable: true }
+        errorMessage: { type: string, nullable: true }
+    ConfigDraft:
+      type: object
+      properties:
+        instanceId: { type: string }
+        schemaVersion: { type: string }
+        dirtyFlag: { type: boolean }
+        draftJson:
+          type: object
+          additionalProperties: true
+    SaveConfigDraftRequest:
+      type: object
+      required: [draftJson]
+      properties:
+        draftJson:
+          type: object
+          additionalProperties: true
+    ConfigVersion:
+      type: object
+      properties:
+        id: { type: string }
+        versionNo: { type: integer }
+        versionStatus:
+          $ref: '#/components/schemas/ConfigVersionStatus'
+        createdAt: { type: string, format: date-time }
+        activatedAt: { type: string, format: date-time, nullable: true }
+    Node:
+      type: object
+      properties:
+        id: { type: string }
+        pairingStatus:
+          $ref: '#/components/schemas/PairingStatus'
+        onlineStatus:
+          $ref: '#/components/schemas/NodeOnlineStatus'
+        lastSeenAt: { type: string, format: date-time, nullable: true }
+    PairingRequest:
+      type: object
+      properties:
+        id: { type: string }
+        instanceId: { type: string }
+        pairingStatus:
+          $ref: '#/components/schemas/PairingStatus'
+        requestedAt: { type: string, format: date-time }
+    Health:
+      type: object
+      properties:
+        runtimeStatus: { type: string }
+        healthStatus: { type: string }
+        lastCheckedAt: { type: string, format: date-time }
+        channels:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              status: { type: string }
+        models:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              status: { type: string }
+    Usage:
+      type: object
+      properties:
+        requests: { type: integer }
+        activeSessions: { type: integer }
+        tokenInput: { type: integer, nullable: true }
+        tokenOutput: { type: integer, nullable: true }
+        estimatedCost: { type: number, nullable: true }
+    Alert:
+      type: object
+      properties:
+        id: { type: string }
+        instanceId: { type: string, nullable: true }
+        alertType: { type: string }
+        severity:
+          $ref: '#/components/schemas/AlertSeverity'
+        status:
+          $ref: '#/components/schemas/AlertStatus'
+        title: { type: string }
+        firstTriggeredAt: { type: string, format: date-time }
+        lastTriggeredAt: { type: string, format: date-time }
+    Audit:
+      type: object
+      properties:
+        id: { type: string }
+        actionType: { type: string }
+        actionResult: { type: string }
+        operatorUserId: { type: string }
+        targetType: { type: string }
+        targetId: { type: string }
+        createdAt: { type: string, format: date-time }
+    EnvelopeCurrentUser:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeBase'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/CurrentUser'
+    EnvelopeInstance:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeBase'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Instance'
+    EnvelopePagedInstances:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeBase'
+        - type: object
+          properties:
+            data:
+              allOf:
+                - $ref: '#/components/schemas/PagedMeta'
+                - type: object
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Instance'
+    EnvelopeJobAccepted:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeBase'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/JobAccepted'
+    EnvelopeJob:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeBase'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Job'
+    EnvelopeConfigDraft:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeBase'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/ConfigDraft'
+    EnvelopePagedConfigVersions:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeBase'
+        - type: object
+          properties:
+            data:
+              allOf:
+                - $ref: '#/components/schemas/PagedMeta'
+                - type: object
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/ConfigVersion'
+    EnvelopePagedNodes:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeBase'
+        - type: object
+          properties:
+            data:
+              allOf:
+                - $ref: '#/components/schemas/PagedMeta'
+                - type: object
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Node'
+    EnvelopePagedPairingRequests:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeBase'
+        - type: object
+          properties:
+            data:
+              allOf:
+                - $ref: '#/components/schemas/PagedMeta'
+                - type: object
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/PairingRequest'
+    EnvelopePairingRequest:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeBase'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/PairingRequest'
+    EnvelopeHealth:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeBase'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Health'
+    EnvelopeUsage:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeBase'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Usage'
+    EnvelopePagedAlerts:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeBase'
+        - type: object
+          properties:
+            data:
+              allOf:
+                - $ref: '#/components/schemas/PagedMeta'
+                - type: object
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Alert'
+    EnvelopeAlert:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeBase'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Alert'
+    EnvelopePagedAudits:
+      allOf:
+        - $ref: '#/components/schemas/EnvelopeBase'
+        - type: object
+          properties:
+            data:
+              allOf:
+                - $ref: '#/components/schemas/PagedMeta'
+                - type: object
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Audit'

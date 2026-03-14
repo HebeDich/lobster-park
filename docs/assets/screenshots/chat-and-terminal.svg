@@ -1,0 +1,15 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="900" rx="28" fill="#0A0F1C"/>
+  <rect x="48" y="48" width="1504" height="804" rx="24" fill="#11182D" stroke="#25304F"/>
+  <rect x="96" y="96" width="660" height="708" rx="22" fill="#18213A"/>
+  <rect x="796" y="96" width="708" height="708" rx="22" fill="#0E1424"/>
+  <rect x="136" y="144" width="580" height="72" rx="16" fill="#223252"/>
+  <rect x="136" y="244" width="420" height="92" rx="18" fill="#24355A"/>
+  <rect x="296" y="364" width="420" height="92" rx="18" fill="#31508A"/>
+  <rect x="136" y="484" width="580" height="212" rx="18" fill="#1E2947"/>
+  <rect x="836" y="144" width="628" height="560" rx="18" fill="#05080F" stroke="#2E3A58"/>
+  <rect x="836" y="728" width="628" height="40" rx="10" fill="#202E4D"/>
+  <text x="800" y="402" fill="#F5F7FF" font-size="48" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">平台对话 / 实例终端截图占位</text>
+  <text x="800" y="462" fill="#99A7C2" font-size="24" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">建议替换为平台聊天页、OpenClaw 调试台或真实终端截图</text>
+  <text x="800" y="780" fill="#6F7D99" font-size="22" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">docs/assets/screenshots/chat-and-terminal.svg</text>
+</svg>

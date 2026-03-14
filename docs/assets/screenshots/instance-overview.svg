@@ -1,0 +1,12 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="900" rx="28" fill="#0B1020"/>
+  <rect x="48" y="48" width="1504" height="804" rx="24" fill="#11182D" stroke="#25304F"/>
+  <rect x="88" y="88" width="240" height="724" rx="20" fill="#18213A"/>
+  <rect x="360" y="88" width="1152" height="120" rx="20" fill="#18213A"/>
+  <rect x="360" y="236" width="560" height="250" rx="20" fill="#1E2947"/>
+  <rect x="952" y="236" width="560" height="250" rx="20" fill="#1E2947"/>
+  <rect x="360" y="514" width="1152" height="298" rx="20" fill="#18213A"/>
+  <text x="800" y="392" fill="#F5F7FF" font-size="48" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">实例概览截图占位</text>
+  <text x="800" y="452" fill="#99A7C2" font-size="24" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">建议替换为实例详情 / 健康状态 / 主操作区域截图</text>
+  <text x="800" y="780" fill="#6F7D99" font-size="22" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">docs/assets/screenshots/instance-overview.svg</text>
+</svg>

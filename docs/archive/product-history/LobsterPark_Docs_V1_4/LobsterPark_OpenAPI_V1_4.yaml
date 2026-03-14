@@ -1,0 +1,3957 @@
+openapi: 3.1.0
+info:
+  title: Lobster Park API
+  version: 1.4.0
+  description: >
+    OpenAPI contract for Lobster Park. V1.4 adds Secrets CRUD endpoints,
+    enhances alerts/notifications filters, fixes PatchInstanceRequest.name
+    maxLength, and adds quotaJson to Tenant schema.
+servers:
+- url: https://lobster-park.internal
+security:
+- cookieAuth: []
+paths:
+  /api/v1/me:
+    get:
+      summary: Get current user context
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeCurrentUser'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances:
+    get:
+      summary: List instances
+      operationId: listInstances
+      parameters:
+      - $ref: '#/components/parameters/PageNo'
+      - $ref: '#/components/parameters/PageSize'
+      - in: query
+        name: keyword
+        schema:
+          type: string
+      - in: query
+        name: lifecycleStatus
+        schema:
+          $ref: '#/components/schemas/InstanceLifecycleStatus'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePagedInstances'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    post:
+      summary: Create instance
+      operationId: createInstance
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInstanceRequest'
+      responses:
+        '202':
+          description: accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeJobAccepted'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}:
+    get:
+      summary: Get instance detail
+      operationId: getInstance
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeInstance'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    delete:
+      summary: Delete instance
+      operationId: deleteInstance
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - confirmText
+              properties:
+                confirmText:
+                  type: string
+      responses:
+        '202':
+          description: accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeJobAccepted'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    patch:
+      summary: Update instance metadata
+      operationId: patchInstance
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchInstanceRequest'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeInstance'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/start:
+    post:
+      summary: Start instance
+      operationId: startInstance
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeJobAccepted'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/stop:
+    post:
+      summary: Stop instance
+      operationId: stopInstance
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeJobAccepted'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/restart:
+    post:
+      summary: Restart instance
+      operationId: restartInstance
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeJobAccepted'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/config/draft:
+    get:
+      summary: Get config draft
+      operationId: getConfigDraft
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeConfigDraft'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    put:
+      summary: Save config draft
+      operationId: saveConfigDraft
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveConfigDraftRequest'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeConfigDraft'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/config/validate:
+    post:
+      summary: Validate config
+      operationId: validateConfig
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+      responses:
+        '202':
+          description: accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeJobAccepted'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/config/publish:
+    post:
+      summary: Publish config
+      operationId: publishConfig
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note:
+                  type: string
+                  maxLength: 500
+                forcePublish:
+                  type: boolean
+                  default: false
+                confirmText:
+                  type: string
+      responses:
+        '202':
+          description: accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeJobAccepted'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+      description: When forcePublish=true, caller must have config.force_publish permission
+        (break-glass). Action is audited and triggers a P2 alert.
+  /api/v1/instances/{instanceId}/config/versions:
+    get:
+      summary: List config versions
+      operationId: listConfigVersions
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - $ref: '#/components/parameters/PageNo'
+      - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePagedConfigVersions'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/config/versions/{versionId}/rollback:
+    post:
+      summary: Rollback config version
+      operationId: rollbackConfigVersion
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - $ref: '#/components/parameters/VersionId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - confirmText
+              properties:
+                confirmText:
+                  type: string
+                note:
+                  type: string
+      responses:
+        '202':
+          description: accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeJobAccepted'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/nodes:
+    get:
+      summary: List instance nodes
+      operationId: listInstanceNodes
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - $ref: '#/components/parameters/PageNo'
+      - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePagedNodes'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  # ── V1.4 NEW: Secrets CRUD ──────────────────────────────────────
+  /api/v1/instances/{instanceId}/secrets:
+    get:
+      summary: List instance secrets (masked)
+      operationId: listInstanceSecrets
+      description: >
+        Returns a paginated list of secrets for the given instance.
+        Only masked previews are returned; cipher values are never exposed.
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - $ref: '#/components/parameters/PageNo'
+      - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePagedSecrets'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    post:
+      summary: Create instance secret
+      operationId: createInstanceSecret
+      description: >
+        Encrypts the provided secret value with AES-256-GCM and stores it.
+        The plain-text value is never persisted or returned.
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSecretRequest'
+      responses:
+        '201':
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeSecret'
+        '409':
+          description: secret_key already exists for this instance
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/secrets/{secretKey}:
+    put:
+      summary: Update instance secret
+      operationId: updateInstanceSecret
+      description: >
+        Updates the secret value and/or expiration. If secretValue is provided,
+        the cipher is re-encrypted and secret_version incremented.
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - $ref: '#/components/parameters/SecretKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSecretRequest'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeSecret'
+        '404':
+          description: secret not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    delete:
+      summary: Delete instance secret
+      operationId: deleteInstanceSecret
+      description: >
+        Hard-deletes the secret. Fails if the secret is referenced by the
+        current active config version.
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - $ref: '#/components/parameters/SecretKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteSecretRequest'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeBase'
+        '409':
+          description: secret is referenced by active config
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  # ── end Secrets CRUD ────────────────────────────────────────────
+  /api/v1/nodes/pairing-requests:
+    get:
+      summary: List pairing requests
+      operationId: listPairingRequests
+      parameters:
+      - $ref: '#/components/parameters/PageNo'
+      - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePagedPairingRequests'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/nodes/pairing-requests/{requestId}/approve:
+    post:
+      summary: Approve pairing request
+      operationId: approvePairingRequest
+      parameters:
+      - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePairingRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/nodes/pairing-requests/{requestId}/reject:
+    post:
+      summary: Reject pairing request
+      operationId: rejectPairingRequest
+      parameters:
+      - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePairingRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/health:
+    get:
+      summary: Get instance health
+      operationId: getInstanceHealth
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeHealth'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/usage:
+    get:
+      summary: Get instance usage
+      operationId: getInstanceUsage
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - in: query
+        name: from
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: to
+        schema:
+          type: string
+          format: date-time
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeUsage'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  # ── V1.4 CHANGED: added instanceId and tenantId query params ───
+  /api/v1/alerts:
+    get:
+      summary: List alerts
+      operationId: listAlerts
+      parameters:
+      - $ref: '#/components/parameters/PageNo'
+      - $ref: '#/components/parameters/PageSize'
+      - in: query
+        name: status
+        schema:
+          $ref: '#/components/schemas/AlertStatus'
+      - in: query
+        name: severity
+        schema:
+          $ref: '#/components/schemas/AlertSeverity'
+      - in: query
+        name: instanceId
+        schema:
+          type: string
+        description: '[V1.4] Filter by instance ID'
+      - in: query
+        name: tenantId
+        schema:
+          type: string
+        description: '[V1.4] Filter by tenant ID (platform admin only; other roles
+          auto-scoped)'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePagedAlerts'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  # ── end alerts change ──────────────────────────────────────────
+  /api/v1/alerts/{alertId}/ack:
+    patch:
+      summary: Acknowledge alert
+      operationId: ackAlert
+      parameters:
+      - $ref: '#/components/parameters/AlertId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeAlert'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/alerts/{alertId}/resolve:
+    patch:
+      summary: Resolve alert
+      operationId: resolveAlert
+      parameters:
+      - $ref: '#/components/parameters/AlertId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeAlert'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/audits:
+    get:
+      summary: List audit logs
+      operationId: listAudits
+      parameters:
+      - $ref: '#/components/parameters/PageNo'
+      - $ref: '#/components/parameters/PageSize'
+      - in: query
+        name: tenantId
+        schema:
+          type: string
+      - in: query
+        name: instanceId
+        schema:
+          type: string
+      - in: query
+        name: actionType
+        schema:
+          type: string
+      - in: query
+        name: operatorId
+        schema:
+          type: string
+      - in: query
+        name: actionResult
+        schema:
+          type: string
+          enum:
+          - success
+          - failed
+      - in: query
+        name: startTime
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: endTime
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: riskLevel
+        schema:
+          type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePagedAudits'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/jobs:
+    get:
+      summary: List jobs
+      operationId: listJobs
+      parameters:
+      - $ref: '#/components/parameters/PageNo'
+      - $ref: '#/components/parameters/PageSize'
+      - in: query
+        name: instanceId
+        schema:
+          type: string
+      - in: query
+        name: jobType
+        schema:
+          type: string
+      - in: query
+        name: jobStatus
+        schema:
+          type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePagedJobs'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/jobs/{jobId}:
+    get:
+      summary: Get job detail
+      operationId: getJob
+      parameters:
+      - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeJob'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /health:
+    get:
+      summary: Liveness probe
+      operationId: getHealth
+      security: []
+      description: Anonymous probe endpoint. Exposure should be limited by network policy.
+      responses:
+        '200':
+          description: ok
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /ready:
+    get:
+      summary: Readiness probe
+      operationId: getReady
+      security: []
+      description: Anonymous readiness endpoint. Exposure should be limited by network policy.
+      responses:
+        '200':
+          description: ok
+        '503':
+          description: not ready
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      operationId: getMetrics
+      security: []
+      description: Anonymous scrape endpoint. Must be protected by ingress/internal network policy.
+      responses:
+        '200':
+          description: ok
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /info:
+    get:
+      summary: Build info
+      operationId: getInfo
+      security: []
+      description: Anonymous build metadata endpoint. Must be protected by ingress/internal network policy.
+      responses:
+        '200':
+          description: ok
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/auth/login:
+    post:
+      summary: Login with email and password
+      operationId: loginWithPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginWithPasswordRequest"
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLoginResult"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /api/v1/auth/change-password:
+    post:
+      summary: Change current user password
+      operationId: changePassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePasswordChangeResult"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /api/v1/auth/refresh:
+    post:
+      summary: Refresh session
+      operationId: refreshSession
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCurrentUser"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /api/v1/auth/logout:
+    post:
+      summary: Logout current session
+      operationId: logoutSession
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeBase'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/tenants:
+    get:
+      summary: List tenants
+      operationId: listTenants
+      parameters:
+      - $ref: '#/components/parameters/PageNo'
+      - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePagedTenants'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    post:
+      summary: Create tenant
+      operationId: createTenant
+      description: Requires `tenant.create` permission. Only platform super admins may call this endpoint.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTenantRequest'
+      responses:
+        '201':
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeBase'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/tenants/{tenantId}/users:
+    get:
+      summary: List tenant users
+      operationId: listTenantUsers
+      parameters:
+      - $ref: '#/components/parameters/TenantId'
+      - $ref: '#/components/parameters/PageNo'
+      - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePagedUsers'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    post:
+      summary: Create tenant user
+      operationId: createTenantUser
+      parameters:
+      - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTenantUserRequest'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeUser'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/tenants/{tenantId}/users/{userId}:
+    patch:
+      summary: Patch tenant user
+      operationId: patchTenantUser
+      parameters:
+      - $ref: '#/components/parameters/TenantId'
+      - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchTenantUserRequest'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeUser'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/users/{userId}/reset-password:
+    post:
+      summary: Reset user password
+      operationId: resetUserPassword
+      parameters:
+      - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetUserPasswordRequest"
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeUser"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /api/v1/roles:
+    get:
+      summary: List roles
+      operationId: listRoles
+      parameters:
+      - $ref: '#/components/parameters/PageNo'
+      - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePagedRoles'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/users/{userId}/roles:
+    patch:
+      summary: Assign user roles
+      operationId: assignUserRoles
+      parameters:
+      - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignUserRolesRequest'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeUser'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/restore:
+    post:
+      summary: Restore soft deleted instance
+      operationId: restoreInstance
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeJobAccepted'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/config/export:
+    get:
+      summary: Export config draft
+      operationId: exportConfigDraft
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeConfigDraft'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/config/import:
+    post:
+      summary: Import config draft
+      operationId: importConfigDraft
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveConfigDraftRequest'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeConfigDraft'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/config/current:
+    get:
+      summary: Get current active config
+      operationId: getCurrentConfig
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeConfigCurrent'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+      description: Used together with config/draft or version detail for client-side
+        diff rendering in V1.
+  /api/v1/instances/{instanceId}/openclaw/basic-config:
+    get:
+      summary: Get instance OpenClaw basic config
+      operationId: getOpenClawBasicConfig
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeOpenClawBasicConfig'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    put:
+      summary: Save instance OpenClaw basic config into draft
+      operationId: saveOpenClawBasicConfig
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpenClawBasicConfigInput'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeOpenClawBasicConfig'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/openclaw/channels:
+    get:
+      summary: List OpenClaw channels for instance
+      operationId: listOpenClawInstanceChannels
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeOpenClawInstanceChannels'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/openclaw/channels/{channelType}/connect:
+    post:
+      summary: Connect or update an OpenClaw channel
+      operationId: connectOpenClawChannel
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - $ref: '#/components/parameters/ChannelType'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpenClawChannelConnectRequest'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeOpenClawChannelConnectResult'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/openclaw/channels/{channelType}/test:
+    post:
+      summary: Test an OpenClaw channel connection
+      operationId: testOpenClawChannel
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - $ref: '#/components/parameters/ChannelType'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpenClawChannelTestRequest'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeOpenClawChannelTestResult'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/openclaw/channels/{channelType}/runtime-status:
+    get:
+      summary: Get runtime session status for an OpenClaw channel
+      operationId: getOpenClawChannelRuntimeStatus
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - $ref: '#/components/parameters/ChannelType'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeOpenClawChannelRuntimeStatus'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/openclaw/channels/{channelType}/logs:
+    get:
+      summary: Get recent OpenClaw channel logs for an instance channel
+      operationId: getOpenClawChannelLogs
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - $ref: '#/components/parameters/ChannelType'
+      - in: query
+        name: lines
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 500
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeOpenClawChannelLogs'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/openclaw/channels/{channelType}/qr-diagnostics:
+    get:
+      summary: Get QR/session diagnostics for a QR-based OpenClaw channel
+      operationId: getOpenClawQrDiagnostics
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - $ref: '#/components/parameters/ChannelType'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeOpenClawQrDiagnostics'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/openclaw/channels/{channelType}/qr-session/start:
+    post:
+      summary: Start QR login session for a QR-based OpenClaw channel
+      operationId: startOpenClawQrSession
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - $ref: '#/components/parameters/ChannelType'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeOpenClawQrSession'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/openclaw/channels/{channelType}/qr-session/wait:
+    get:
+      summary: Wait for QR login completion for a QR-based OpenClaw channel
+      operationId: waitOpenClawQrSession
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - $ref: '#/components/parameters/ChannelType'
+      - in: query
+        name: timeoutMs
+        required: false
+        schema:
+          type: integer
+          minimum: 1000
+          maximum: 60000
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeOpenClawQrSession'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/openclaw/pairing-requests:
+    get:
+      summary: List instance OpenClaw pairing requests
+      operationId: listOpenClawInstancePairingRequests
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeOpenClawPairingRequests'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/openclaw/pairing-requests/{pairingCode}/approve:
+    post:
+      summary: Approve instance OpenClaw pairing request
+      operationId: approveOpenClawInstancePairingRequest
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - $ref: '#/components/parameters/PairingCode'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePairingRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/openclaw/pairing-requests/{pairingCode}/reject:
+    post:
+      summary: Reject instance OpenClaw pairing request
+      operationId: rejectOpenClawInstancePairingRequest
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - $ref: '#/components/parameters/PairingCode'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpenClawPairingRejectRequest'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePairingRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/openclaw/console/session:
+    post:
+      summary: Create instance OpenClaw console session snapshot
+      operationId: createOpenClawConsoleSession
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeOpenClawConsoleSession'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/openclaw/console/send:
+    post:
+      summary: Send a message through instance OpenClaw console
+      operationId: sendOpenClawConsoleMessage
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeOpenClawConsoleSession'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/openclaw/console/history:
+    get:
+      summary: Get recent instance OpenClaw console history
+      operationId: getOpenClawConsoleHistory
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeOpenClawConsoleHistory'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/config/versions/{versionId}:
+    get:
+      summary: Get config version detail
+      operationId: getConfigVersionDetail
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - $ref: '#/components/parameters/VersionId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeConfigVersion'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/nodes/{nodeId}/detach:
+    post:
+      summary: Detach node from instance
+      operationId: detachNode
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - $ref: '#/components/parameters/NodeId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - confirmText
+              properties:
+                confirmText:
+                  type: string
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePairingRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/monitor/overview:
+    get:
+      summary: Get monitor overview
+      operationId: getMonitorOverview
+      parameters:
+      - $ref: '#/components/parameters/PageNo'
+      - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeMonitorOverview'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/alerts/{alertId}:
+    get:
+      summary: Get alert detail
+      operationId: getAlert
+      parameters:
+      - $ref: '#/components/parameters/AlertId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeAlert'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  # ── V1.4 CHANGED: added isRead and eventType query params ──────
+  /api/v1/notifications:
+    get:
+      summary: List current user notifications
+      operationId: listNotifications
+      parameters:
+      - $ref: '#/components/parameters/PageNo'
+      - $ref: '#/components/parameters/PageSize'
+      - in: query
+        name: isRead
+        schema:
+          type: boolean
+        description: '[V1.4] Filter by read status. true=read, false=unread, omit=all'
+      - in: query
+        name: eventType
+        schema:
+          type: string
+        description: '[V1.4] Filter by event type, e.g. alert.triggered, job.completed'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePagedNotifications'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  # ── end notifications change ───────────────────────────────────
+  /api/v1/notifications/unread-count:
+    get:
+      summary: Get current user unread notification count
+      operationId: getUnreadNotificationCount
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeUnreadCount'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/notifications/{notificationId}/read:
+    patch:
+      summary: Mark notification as read
+      operationId: markNotificationRead
+      parameters:
+      - $ref: '#/components/parameters/NotificationId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeNotificationReadResult'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/notifications/read-all:
+    patch:
+      summary: Mark all notifications as read
+      operationId: markAllNotificationsRead
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeBulkReadResult'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/jobs/{jobId}/cancel:
+    post:
+      summary: Cancel job
+      operationId: cancelJob
+      parameters:
+      - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeCancelJobResult'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/catalog/skills:
+    get:
+      summary: List skill packages visible to current tenant
+      operationId: listSkillPackages
+      parameters:
+      - $ref: '#/components/parameters/PageNo'
+      - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePagedSkillPackages'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/catalog/channels:
+    get:
+      summary: List platform-supported OpenClaw channels
+      operationId: listOpenClawCatalogChannels
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeOpenClawCatalogChannels'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/catalog/channel-plugins:
+    get:
+      summary: List platform-supported OpenClaw channel plugins
+      operationId: listOpenClawCatalogChannelPlugins
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeOpenClawCatalogChannelPlugins'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/skills:
+    get:
+      summary: List skills with instance enabled status
+      operationId: listInstanceSkills
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - $ref: '#/components/parameters/PageNo'
+      - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePagedInstanceSkills'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/skills/{skillId}/enable:
+    post:
+      summary: Enable skill on instance
+      operationId: enableSkill
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - $ref: '#/components/parameters/SkillId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeBase'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/instances/{instanceId}/skills/{skillId}/disable:
+    post:
+      summary: Disable skill on instance
+      operationId: disableSkill
+      parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - $ref: '#/components/parameters/SkillId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeBase'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/catalog/templates:
+    get:
+      summary: List built-in templates
+      operationId: listTemplates
+      parameters:
+      - $ref: '#/components/parameters/PageNo'
+      - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePagedTemplates'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/platform/templates:
+    post:
+      summary: Create platform template (V1.5)
+      operationId: createPlatformTemplate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Template'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeBase'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/auth/sso/authorize:
+    get:
+      summary: Initiate OIDC SSO authorization
+      operationId: authorizeSso
+      security: []
+      parameters:
+      - in: query
+        name: redirect_uri
+        required: false
+        schema:
+          type: string
+          maxLength: 512
+          pattern: '^/(?!/).{0,511}$'
+        description: Same-origin relative path only, e.g. /workbench. Absolute URLs are rejected and fall back to /workbench.
+      responses:
+        '302':
+          description: Temporary redirect
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+            Set-Cookie:
+              schema:
+                type: string
+              description: Present on callback success
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/auth/sso/callback:
+    get:
+      summary: OIDC authorization callback
+      operationId: handleSsoCallback
+      security: []
+      parameters:
+      - in: query
+        name: code
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: state
+        required: true
+        schema:
+          type: string
+      responses:
+        '302':
+          description: Temporary redirect
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+            Set-Cookie:
+              schema:
+                type: string
+              description: Present on callback success
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/tenants/{tenantId}:
+    patch:
+      summary: Patch tenant metadata and quota
+      operationId: patchTenant
+      parameters:
+      - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchTenantRequest'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeBase'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/ws/ticket:
+    post:
+      summary: Issue one-time WebSocket ticket
+      operationId: issueWsTicket
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeWsTicket'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/platform/settings:
+    get:
+      summary: List platform settings
+      operationId: listPlatformSettings
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePagedPlatformSettings'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/platform/settings/{settingKey}:
+    get:
+      summary: Get platform setting
+      operationId: getPlatformSetting
+      parameters:
+      - $ref: '#/components/parameters/SettingKey'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePlatformSetting'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    put:
+      summary: Update platform setting
+      operationId: putPlatformSetting
+      parameters:
+      - $ref: '#/components/parameters/SettingKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - settingValueJson
+              properties:
+                settingValueJson:
+                  $ref: '#/components/schemas/AnyJsonValue'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePlatformSetting'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/platform/schemas/{runtimeVersion}:
+    get:
+      summary: Get JSON schema for a runtime version
+      operationId: getRuntimeSchema
+      parameters:
+      - $ref: '#/components/parameters/RuntimeVersion'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/platform/openclaw/live-acceptance-reports:
+    get:
+      summary: Get OpenClaw live acceptance report index
+      operationId: getOpenClawLiveAcceptanceIndex
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeOpenClawLiveAcceptanceIndex'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/platform/openclaw/live-acceptance-reports/{reportFileName}:
+    get:
+      summary: Get one OpenClaw live acceptance report
+      operationId: getOpenClawLiveAcceptanceReport
+      parameters:
+      - in: path
+        name: reportFileName
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeOpenClawLiveAcceptanceReport'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: lp_access
+  parameters:
+    PageNo:
+      in: query
+      name: pageNo
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      in: query
+      name: pageSize
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    IdempotencyKey:
+      in: header
+      name: X-Idempotency-Key
+      required: true
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+    InstanceId:
+      in: path
+      name: instanceId
+      required: true
+      schema:
+        type: string
+    VersionId:
+      in: path
+      name: versionId
+      required: true
+      schema:
+        type: string
+    AlertId:
+      in: path
+      name: alertId
+      required: true
+      schema:
+        type: string
+    JobId:
+      in: path
+      name: jobId
+      required: true
+      schema:
+        type: string
+    RequestId:
+      in: path
+      name: requestId
+      required: true
+      schema:
+        type: string
+    TenantId:
+      in: path
+      name: tenantId
+      required: true
+      schema:
+        type: string
+    UserId:
+      in: path
+      name: userId
+      required: true
+      schema:
+        type: string
+    NodeId:
+      in: path
+      name: nodeId
+      required: true
+      schema:
+        type: string
+    NotificationId:
+      in: path
+      name: notificationId
+      required: true
+      schema:
+        type: string
+    SkillId:
+      in: path
+      name: skillId
+      required: true
+      schema:
+        type: string
+    SettingKey:
+      in: path
+      name: settingKey
+      required: true
+      schema:
+        type: string
+      description: Platform setting key
+    RuntimeVersion:
+      in: path
+      name: runtimeVersion
+      required: true
+      schema:
+        type: string
+      description: Approved OpenClaw runtime version
+    # ── V1.4 NEW ──
+    SecretKey:
+      in: path
+      name: secretKey
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z0-9_]+$'
+        maxLength: 64
+      description: '[V1.4] Secret key identifier within an instance'
+    ChannelType:
+      in: path
+      name: channelType
+      required: true
+      schema:
+        type: string
+    PairingCode:
+      in: path
+      name: pairingCode
+      required: true
+      schema:
+        type: string
+  schemas:
+    EnvelopeBase:
+      type: object
+      properties:
+        requestId:
+          type: string
+        code:
+          type: integer
+        message:
+          type: string
+    PagedMeta:
+      type: object
+      properties:
+        pageNo:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+    InstanceLifecycleStatus:
+      type: string
+      enum:
+      - draft
+      - creating
+      - create_failed
+      - stopped
+      - starting
+      - running
+      - unhealthy
+      - updating
+      - deleting
+      - deleted
+    ConfigVersionStatus:
+      type: string
+      enum:
+      - draft
+      - validating
+      - validate_failed
+      - ready_to_publish
+      - publishing
+      - publish_failed
+      - active
+      - rolled_back
+      - archived
+    PairingStatus:
+      type: string
+      enum:
+      - pending
+      - approved
+      - rejected
+      - expired
+    NodeOnlineStatus:
+      type: string
+      enum:
+      - online
+      - offline
+      - error
+      - detached
+    AlertStatus:
+      type: string
+      enum:
+      - open
+      - acked
+      - resolved
+      - suppressed
+    AlertSeverity:
+      type: string
+      enum:
+      - P1
+      - P2
+      - P3
+      - P4
+    CurrentUser:
+      type: object
+      properties:
+        userId:
+          type: string
+        tenantId:
+          type: string
+        displayName:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        permissions:
+          type: array
+          items:
+            type: string
+        email:
+          type: string
+          format: email
+    Instance:
+      type: object
+      properties:
+        id:
+          type: string
+        tenantId:
+          type: string
+        ownerUserId:
+          type: string
+        name:
+          type: string
+        specCode:
+          type: string
+          enum:
+          - S
+          - M
+          - L
+        runtimeVersion:
+          type: string
+        lifecycleStatus:
+          $ref: '#/components/schemas/InstanceLifecycleStatus'
+        healthStatus:
+          type: string
+        currentActiveVersionId:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        nodeCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateInstanceRequest:
+      type: object
+      required:
+      - name
+      - specCode
+      properties:
+        name:
+          type: string
+          maxLength: 64
+        description:
+          type: string
+          maxLength: 500
+        specCode:
+          type: string
+          enum:
+          - S
+          - M
+          - L
+        templateId:
+          type: string
+          nullable: true
+        runtimeVersion:
+          type: string
+          nullable: true
+        autoStart:
+          type: boolean
+          default: false
+    # ── V1.4 CHANGED: maxLength 100 → 64 ──
+    PatchInstanceRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 64
+          description: '[V1.4] maxLength aligned with CreateInstanceRequest (was 100)'
+        description:
+          type: string
+          nullable: true
+          maxLength: 500
+    JobAccepted:
+      type: object
+      properties:
+        jobId:
+          type: string
+        instanceId:
+          type: string
+    Job:
+      type: object
+      properties:
+        id:
+          type: string
+        tenantId:
+          type: string
+          nullable: true
+        instanceId:
+          type: string
+          nullable: true
+        jobType:
+          type: string
+        jobStatus:
+          type: string
+          enum:
+          - pending
+          - running
+          - success
+          - failed
+          - cancelled
+          - dead_letter
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        errorCode:
+          type: integer
+          nullable: true
+        errorMessage:
+          type: string
+          nullable: true
+        requestId:
+          type: string
+        payloadJson:
+          type: object
+          additionalProperties: true
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        finishedAt:
+          type: string
+          format: date-time
+          nullable: true
+    ConfigDraft:
+      type: object
+      properties:
+        instanceId:
+          type: string
+        schemaVersion:
+          type: string
+        dirtyFlag:
+          type: boolean
+        draftJson:
+          type: object
+          additionalProperties: true
+    SaveConfigDraftRequest:
+      type: object
+      required:
+      - draftJson
+      properties:
+        draftJson:
+          type: object
+          additionalProperties: true
+    ConfigVersion:
+      type: object
+      properties:
+        id:
+          type: string
+        versionNo:
+          type: integer
+        versionStatus:
+          $ref: '#/components/schemas/ConfigVersionStatus'
+        createdAt:
+          type: string
+          format: date-time
+        activatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        publishNote:
+          type: string
+          nullable: true
+        createdBy:
+          type: string
+        sourceType:
+          type: string
+          enum:
+          - publish
+          - rollback
+          - force_publish
+        normalizedConfigJson:
+          type: object
+          additionalProperties: true
+        validationErrorsJson:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    Node:
+      type: object
+      properties:
+        id:
+          type: string
+        pairingStatus:
+          $ref: '#/components/schemas/PairingStatus'
+        onlineStatus:
+          $ref: '#/components/schemas/NodeOnlineStatus'
+        lastSeenAt:
+          type: string
+          format: date-time
+          nullable: true
+        tenantId:
+          type: string
+        boundInstanceId:
+          type: string
+          nullable: true
+        metadataJson:
+          type: object
+          additionalProperties: true
+        capabilitiesJson:
+          type: array
+          items:
+            type: string
+    PairingRequest:
+      type: object
+      properties:
+        id:
+          type: string
+        instanceId:
+          type: string
+        pairingStatus:
+          $ref: '#/components/schemas/PairingStatus'
+        requestedAt:
+          type: string
+          format: date-time
+        tenantId:
+          type: string
+        nodeFingerprint:
+          type: string
+        reviewedBy:
+          type: string
+          nullable: true
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        reason:
+          type: string
+          nullable: true
+    Health:
+      type: object
+      properties:
+        runtimeStatus:
+          type: string
+        healthStatus:
+          type: string
+        lastCheckedAt:
+          type: string
+          format: date-time
+        channels:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              status:
+                type: string
+        models:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              status:
+                type: string
+        errors:
+          type: array
+          items:
+            type: string
+    OpenClawBasicConfigInput:
+      type: object
+      properties:
+        general:
+          type: object
+          additionalProperties: true
+        defaultModel:
+          type: object
+          additionalProperties: true
+          nullable: true
+        defaultAgent:
+          type: object
+          additionalProperties: true
+          nullable: true
+        security:
+          type: object
+          additionalProperties: true
+        toolPolicy:
+          type: object
+          additionalProperties: true
+        limits:
+          type: object
+          additionalProperties: true
+        channelDefaults:
+          type: object
+          additionalProperties: true
+    OpenClawBasicConfig:
+      type: object
+      properties:
+        instanceId:
+          type: string
+        runtimeVersion:
+          type: string
+        draftDirty:
+          type: boolean
+        activeVersionId:
+          type: string
+          nullable: true
+        general:
+          type: object
+          additionalProperties: true
+        defaultModel:
+          type: object
+          additionalProperties: true
+          nullable: true
+        defaultAgent:
+          type: object
+          additionalProperties: true
+          nullable: true
+        security:
+          type: object
+          additionalProperties: true
+        toolPolicy:
+          type: object
+          additionalProperties: true
+        limits:
+          type: object
+          additionalProperties: true
+        channelDefaults:
+          type: object
+          additionalProperties: true
+        channelCount:
+          type: integer
+        skillCount:
+          type: integer
+    OpenClawChannelCatalogField:
+      type: object
+      properties:
+        name:
+          type: string
+        label:
+          type: string
+        required:
+          type: boolean
+        sensitive:
+          type: boolean
+        placeholder:
+          type: string
+          nullable: true
+    OpenClawChannelCatalogItem:
+      type: object
+      properties:
+        channelType:
+          type: string
+        displayName:
+          type: string
+        description:
+          type: string
+        tier:
+          type: string
+          enum:
+          - L1
+          - L2
+        connectionMode:
+          type: string
+          enum:
+          - qr
+          - credentials
+          - plugin
+        onboardingType:
+          type: string
+          enum:
+          - qr_session
+          - bot_token
+          - webhook_secret
+          - plugin_required
+        pairingSupported:
+          type: boolean
+        directoryLookupSupported:
+          type: boolean
+        official:
+          type: boolean
+        enabledByPlatform:
+          type: boolean
+        requiredSecrets:
+          type: array
+          items:
+            type: string
+        requiredFields:
+          type: array
+          items:
+            $ref: '#/components/schemas/OpenClawChannelCatalogField'
+        connectivityCheckMode:
+          type: string
+          enum:
+          - gateway_health
+          - message_send_dry_run
+          - session_status
+        messageTestMode:
+          type: string
+          enum:
+          - gateway_agent
+          - channel_message_send
+          - qr_session_probe
+    OpenClawCatalogChannels:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OpenClawChannelCatalogItem'
+    OpenClawCatalogChannelPlugin:
+      type: object
+      properties:
+        channelType:
+          type: string
+        displayName:
+          type: string
+        tier:
+          type: string
+        official:
+          type: boolean
+        connectionMode:
+          type: string
+        onboardingType:
+          type: string
+        enabledByPlatform:
+          type: boolean
+        requiredSecrets:
+          type: array
+          items:
+            type: string
+        connectivityCheckMode:
+          type: string
+        messageTestMode:
+          type: string
+    OpenClawCatalogChannelPlugins:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OpenClawCatalogChannelPlugin'
+    OpenClawConnectivitySummary:
+      type: object
+      properties:
+        runtimeStatus:
+          type: string
+        healthStatus:
+          type: string
+        modelCount:
+          type: integer
+        channelCount:
+          type: integer
+        pendingPairingCount:
+          type: integer
+        nodeCount:
+          type: integer
+        lastCheckedAt:
+          type: string
+          format: date-time
+    OpenClawChannelConfig:
+      type: object
+      properties:
+        id:
+          type: string
+        channelType:
+          type: string
+        type:
+          type: string
+        enabled:
+          type: boolean
+        modelId:
+          type: string
+        displayName:
+          type: string
+        connectionMode:
+          type: string
+        pairingSupported:
+          type: boolean
+        testTarget:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+        configuredSecretKeys:
+          type: array
+          items:
+            type: string
+    OpenClawInstanceChannel:
+      allOf:
+      - $ref: '#/components/schemas/OpenClawChannelCatalogItem'
+      - type: object
+        properties:
+          configured:
+            type: boolean
+          enabled:
+            type: boolean
+          pendingPairingCount:
+            type: integer
+          sessionStatus:
+            type: string
+            nullable: true
+          statusHint:
+            type: string
+            nullable: true
+          config:
+            $ref: '#/components/schemas/OpenClawChannelConfig'
+            nullable: true
+    OpenClawInstanceChannels:
+      type: object
+      properties:
+        instanceId:
+          type: string
+        connectivity:
+          $ref: '#/components/schemas/OpenClawConnectivitySummary'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OpenClawInstanceChannel'
+    OpenClawChannelConnectRequest:
+      type: object
+      properties:
+        channelId:
+          type: string
+        modelId:
+          type: string
+        enabled:
+          type: boolean
+        testTarget:
+          type: string
+        fields:
+          type: object
+          additionalProperties: true
+      additionalProperties: true
+    OpenClawChannelConnectResult:
+      type: object
+      properties:
+        instanceId:
+          type: string
+        channelType:
+          type: string
+        configured:
+          type: boolean
+        publishRequired:
+          type: boolean
+        config:
+          $ref: '#/components/schemas/OpenClawChannelConfig'
+          nullable: true
+    OpenClawChannelTestRequest:
+      type: object
+      properties:
+        target:
+          type: string
+        message:
+          type: string
+        realDelivery:
+          type: boolean
+          description: When true, send through the running instance gateway instead of CLI dry-run.
+      additionalProperties: true
+    OpenClawChannelTestResult:
+      type: object
+      properties:
+        instanceId:
+          type: string
+        channelType:
+          type: string
+        success:
+          type: boolean
+        simulated:
+          type: boolean
+        testMode:
+          type: string
+        deliveryMode:
+          type: string
+          enum:
+          - dry_run
+          - real
+        relayMode:
+          type: string
+          enum:
+          - gateway
+          - local_config
+        target:
+          type: string
+        message:
+          type: string
+        errorMessage:
+          type: string
+          nullable: true
+        relay:
+          type: object
+          additionalProperties: true
+          nullable: true
+        checkedAt:
+          type: string
+          format: date-time
+    OpenClawChannelRuntimeStatus:
+      type: object
+      properties:
+        instanceId:
+          type: string
+        channelType:
+          type: string
+        connectionMode:
+          type: string
+        configured:
+          type: boolean
+        linked:
+          type: boolean
+        running:
+          type: boolean
+        connected:
+          type: boolean
+        sessionStatus:
+          type: string
+        lastError:
+          type: string
+          nullable: true
+        self:
+          type: object
+          additionalProperties: true
+          nullable: true
+        accounts:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        statusSource:
+          type: string
+        qrSupported:
+          type: boolean
+        qrHint:
+          type: string
+          nullable: true
+    OpenClawQrSession:
+      type: object
+      properties:
+        instanceId:
+          type: string
+        channelType:
+          type: string
+        qrSupported:
+          type: boolean
+        status:
+          type: string
+        connected:
+          type: boolean
+          nullable: true
+        qrDataUrl:
+          type: string
+          nullable: true
+        message:
+          type: string
+          nullable: true
+        source:
+          type: string
+    OpenClawChannelLogs:
+      type: object
+      properties:
+        instanceId:
+          type: string
+        channelType:
+          type: string
+        lines:
+          type: array
+          items:
+            type: string
+        file:
+          type: string
+          nullable: true
+        source:
+          type: string
+        errorMessage:
+          type: string
+          nullable: true
+    OpenClawQrDiagnostics:
+      type: object
+      properties:
+        instanceId:
+          type: string
+        channelType:
+          type: string
+        runtimeStatus:
+          type: object
+          additionalProperties: true
+        logs:
+          type: object
+          additionalProperties: true
+        reasons:
+          type: array
+          items:
+            type: string
+        suggestions:
+          type: array
+          items:
+            type: string
+    OpenClawPairingRequests:
+      type: object
+      properties:
+        instanceId:
+          type: string
+        total:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PairingRequest'
+    OpenClawPairingRejectRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          nullable: true
+    OpenClawConsoleSession:
+      type: object
+      properties:
+        sessionId:
+          type: string
+        instanceId:
+          type: string
+        mode:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        runtime:
+          type: object
+          additionalProperties: true
+        connectivity:
+          type: object
+          additionalProperties: true
+        routeContext:
+          type: object
+          additionalProperties: true
+        supportedActions:
+          type: array
+          items:
+            type: string
+        recentHistory:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    OpenClawConsoleHistory:
+      type: object
+      properties:
+        instanceId:
+          type: string
+        mode:
+          type: string
+        diagnostics:
+          type: object
+          additionalProperties: true
+        runtime:
+          type: object
+          additionalProperties: true
+        connectivity:
+          type: object
+          additionalProperties: true
+        count:
+          type: integer
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    Usage:
+      type: object
+      properties:
+        requests:
+          type: integer
+        activeSessions:
+          type: integer
+        tokenInput:
+          type: integer
+          nullable: true
+        tokenOutput:
+          type: integer
+          nullable: true
+        estimatedCost:
+          type: number
+          nullable: true
+        points:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+              requests:
+                type: integer
+              tokenInput:
+                type: integer
+              tokenOutput:
+                type: integer
+              estimatedCost:
+                type: number
+    Alert:
+      type: object
+      properties:
+        id:
+          type: string
+        instanceId:
+          type: string
+          nullable: true
+        alertType:
+          type: string
+        severity:
+          $ref: '#/components/schemas/AlertSeverity'
+        status:
+          $ref: '#/components/schemas/AlertStatus'
+        title:
+          type: string
+        firstTriggeredAt:
+          type: string
+          format: date-time
+        lastTriggeredAt:
+          type: string
+          format: date-time
+        tenantId:
+          type: string
+        dedupeKey:
+          type: string
+        detailJson:
+          type: object
+          additionalProperties: true
+        ackedBy:
+          type: string
+          nullable: true
+        ackedAt:
+          type: string
+          format: date-time
+          nullable: true
+        resolvedBy:
+          type: string
+          nullable: true
+        resolvedAt:
+          type: string
+          format: date-time
+          nullable: true
+    Audit:
+      type: object
+      properties:
+        id:
+          type: string
+        actionType:
+          type: string
+        actionResult:
+          type: string
+        operatorUserId:
+          type: string
+        targetType:
+          type: string
+        targetId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        tenantId:
+          type: string
+        summary:
+          type: string
+          nullable: true
+        traceId:
+          type: string
+        riskLevel:
+          type: string
+        beforeJson:
+          type: object
+          additionalProperties: true
+        afterJson:
+          type: object
+          additionalProperties: true
+        metadataJson:
+          type: object
+          additionalProperties: true
+    # ── V1.4 CHANGED: added quotaJson ──
+    Tenant:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+        quotaJson:
+          type: object
+          additionalProperties: true
+          nullable: true
+          description: '[V1.4] Tenant quota config, e.g. { maxInstances, maxUsers,
+            maxNodes }'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        tenantId:
+          type: string
+        displayName:
+          type: string
+        email:
+          type: string
+          format: email
+        status:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    Role:
+      type: object
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+        name:
+          type: string
+        permissions:
+          type: array
+          items:
+            type: string
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+        tenantId:
+          type: string
+        alertId:
+          type: string
+          nullable: true
+        eventType:
+          type: string
+        channelType:
+          type: string
+          enum:
+          - in_app
+          - email
+        recipientUserId:
+          type: string
+          nullable: true
+        recipient:
+          type: string
+        title:
+          type: string
+        contentJson:
+          type: object
+          additionalProperties: true
+        sendStatus:
+          type: string
+        retryCount:
+          type: integer
+        lastError:
+          type: string
+          nullable: true
+        readAt:
+          type: string
+          format: date-time
+          nullable: true
+        sentAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+    UnreadCount:
+      type: object
+      properties:
+        count:
+          type: integer
+    MonitorOverview:
+      type: object
+      properties:
+        tenantId:
+          type: string
+        totalInstances:
+          type: integer
+        runningInstances:
+          type: integer
+        unhealthyInstances:
+          type: integer
+        offlineNodes:
+          type: integer
+        openAlerts:
+          type: integer
+        generatedAt:
+          type: string
+          format: date-time
+    SkillPackage:
+      type: object
+      properties:
+        id:
+          type: string
+        sourceType:
+          type: string
+        sourceUri:
+          type: string
+        version:
+          type: string
+        reviewStatus:
+          type: string
+        riskLevel:
+          type: string
+        metadataJson:
+          type: object
+          additionalProperties: true
+        tenantPolicyEffect:
+          type: string
+          nullable: true
+          enum:
+          - allow
+          - deny
+    Template:
+      type: object
+      properties:
+        id:
+          type: string
+        tenantScope:
+          type: string
+        name:
+          type: string
+        templateType:
+          type: string
+        specCode:
+          type: string
+          enum:
+          - S
+          - M
+          - L
+        status:
+          type: string
+        configJson:
+          type: object
+          additionalProperties: true
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    EnvelopeError:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            type: object
+            additionalProperties: true
+    LoginWithPasswordRequest:
+      type: object
+      required:
+      - email
+      - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+    ChangePasswordRequest:
+      type: object
+      required:
+      - oldPassword
+      - newPassword
+      properties:
+        oldPassword:
+          type: string
+          minLength: 8
+        newPassword:
+          type: string
+          minLength: 8
+    ResetUserPasswordRequest:
+      type: object
+      required:
+      - password
+      properties:
+        password:
+          type: string
+          minLength: 8
+    LoginResult:
+      type: object
+      properties:
+        loggedIn:
+          type: boolean
+    PasswordChangeResult:
+      type: object
+      properties:
+        changed:
+          type: boolean
+    CreateTenantUserRequest:
+      type: object
+      required:
+      - email
+      - displayName
+      - initialPassword
+      properties:
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        initialPassword:
+          type: string
+          minLength: 8
+        roleCodes:
+          type: array
+          items:
+            type: string
+    PatchTenantUserRequest:
+      type: object
+      properties:
+        displayName:
+          type: string
+        status:
+          type: string
+        roleCodes:
+          type: array
+          items:
+            type: string
+    AssignUserRolesRequest:
+      type: object
+      required:
+      - roleCodes
+      properties:
+        roleCodes:
+          type: array
+          items:
+            type: string
+    CurrentConfig:
+      allOf:
+      - $ref: '#/components/schemas/ConfigVersion'
+      - type: object
+        properties:
+          instanceId:
+            type: string
+    NotificationReadResult:
+      type: object
+      properties:
+        notificationId:
+          type: string
+        readAt:
+          type: string
+          format: date-time
+    BulkReadResult:
+      type: object
+      properties:
+        updatedCount:
+          type: integer
+    CancelJobResult:
+      type: object
+      properties:
+        jobId:
+          type: string
+        jobStatus:
+          type: string
+    PlatformSetting:
+      type: object
+      properties:
+        id:
+          type: string
+        settingKey:
+          type: string
+        settingValueJson:
+          $ref: '#/components/schemas/AnyJsonValue'
+        description:
+          type: string
+        updatedBy:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+    WsTicket:
+      type: object
+      properties:
+        ticket:
+          type: string
+        expiresIn:
+          type: integer
+          description: Seconds until expiry
+    CreateTenantRequest:
+      type: object
+      required:
+      - name
+      - quotaJson
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        quotaJson:
+          type: object
+          additionalProperties: true
+    PatchTenantRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        status:
+          type: string
+          enum:
+          - active
+          - suspended
+        quotaJson:
+          type: object
+          additionalProperties: true
+    SsoAuthorizeResponse:
+      type: object
+      properties:
+        redirectTo:
+          type: string
+          format: uri
+        expiresIn:
+          type: integer
+          description: PKCE state/cache ttl in seconds
+      description: Documentation schema for 302 redirect handoff. Actual response
+        is an HTTP redirect.
+    SsoCallbackResponse:
+      type: object
+      properties:
+        redirectTo:
+          type: string
+          format: uri
+        accessCookieName:
+          type: string
+          default: lp_access
+        refreshCookieName:
+          type: string
+          default: lp_refresh
+      description: Documentation schema for 302 redirect + Set-Cookie. Actual response
+        is an HTTP redirect.
+    OpenClawLiveAcceptanceReportSummary:
+      type: object
+      properties:
+        fileName:
+          type: string
+        filePath:
+          type: string
+        title:
+          type: string
+        channel:
+          type: string
+        enabled:
+          type: string
+        user:
+          type: string
+        model:
+          type: string
+        target:
+          type: string
+        generatedAt:
+          type: string
+        status:
+          type: string
+        instanceId:
+          type: string
+        consoleRelayMode:
+          type: string
+        channelDeliveryMode:
+          type: string
+        messageExcerpt:
+          type: string
+    OpenClawLiveAcceptanceIndex:
+      type: object
+      properties:
+        indexPath:
+          type: string
+        generatedAt:
+          type: string
+        summary:
+          type: object
+          additionalProperties: true
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OpenClawLiveAcceptanceReportSummary'
+    OpenClawLiveAcceptanceReport:
+      allOf:
+      - $ref: '#/components/schemas/OpenClawLiveAcceptanceReportSummary'
+      - type: object
+        properties:
+          content:
+            type: string
+    AnyJsonValue:
+      description: Any valid JSON value used by platform settings.
+      oneOf:
+      - type: object
+        additionalProperties: true
+      - type: array
+        items: {}
+      - type: string
+      - type: number
+      - type: boolean
+      - type: 'null'
+    # ── V1.4 NEW: Secrets schemas ─────────────────────────────────
+    SecretListItem:
+      type: object
+      description: '[V1.4] Masked secret item — cipher_value is never exposed'
+      properties:
+        id:
+          type: string
+          description: ULID with sec_ prefix
+        secretKey:
+          type: string
+          description: Unique key within instance, e.g. "openai_api_key"
+        maskedPreview:
+          type: string
+          description: Masked preview, e.g. "sk-****7890"
+        secretVersion:
+          type: integer
+          description: Incremented on each value update
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Optional expiration time for credential rotation tracking
+        createdBy:
+          type: string
+        updatedBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateSecretRequest:
+      type: object
+      description: '[V1.4] Create a new secret for an instance'
+      additionalProperties: false
+      required:
+      - secretKey
+      - secretValue
+      properties:
+        secretKey:
+          type: string
+          pattern: '^[a-z0-9_]+$'
+          maxLength: 64
+          description: Unique identifier within the instance
+        secretValue:
+          type: string
+          maxLength: 4096
+          description: Plain-text secret value (encrypted at rest, never returned)
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Optional expiration timestamp
+    UpdateSecretRequest:
+      type: object
+      description: '[V1.4] Update secret value and/or expiration'
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        secretValue:
+          type: string
+          maxLength: 4096
+          description: New plain-text value (omit to keep current value)
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: New expiration (explicit null clears expiration)
+    DeleteSecretRequest:
+      type: object
+      description: '[V1.4] Confirm secret deletion'
+      additionalProperties: false
+      required:
+      - confirmText
+      properties:
+        confirmText:
+          type: string
+          enum:
+          - DELETE
+          description: Must be DELETE to confirm
+    # ── end Secrets schemas ───────────────────────────────────────
+    # ── Envelope wrappers ─────────────────────────────────────────
+    EnvelopeLoginResult:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/LoginResult'
+    EnvelopePasswordChangeResult:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/PasswordChangeResult'
+    EnvelopeCurrentUser:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/CurrentUser'
+    EnvelopeInstance:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/Instance'
+    EnvelopePagedInstances:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            allOf:
+            - $ref: '#/components/schemas/PagedMeta'
+            - type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Instance'
+    EnvelopeJobAccepted:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/JobAccepted'
+    EnvelopeJob:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/Job'
+    EnvelopePagedJobs:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            allOf:
+            - $ref: '#/components/schemas/PagedMeta'
+            - type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Job'
+    EnvelopeConfigDraft:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/ConfigDraft'
+    EnvelopePagedConfigVersions:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            allOf:
+            - $ref: '#/components/schemas/PagedMeta'
+            - type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/ConfigVersion'
+    EnvelopePagedNodes:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            allOf:
+            - $ref: '#/components/schemas/PagedMeta'
+            - type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Node'
+    EnvelopePagedPairingRequests:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            allOf:
+            - $ref: '#/components/schemas/PagedMeta'
+            - type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/PairingRequest'
+    EnvelopePairingRequest:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/PairingRequest'
+    EnvelopeHealth:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/Health'
+    EnvelopeOpenClawBasicConfig:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/OpenClawBasicConfig'
+    EnvelopeOpenClawCatalogChannels:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/OpenClawCatalogChannels'
+    EnvelopeOpenClawCatalogChannelPlugins:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/OpenClawCatalogChannelPlugins'
+    EnvelopeOpenClawInstanceChannels:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/OpenClawInstanceChannels'
+    EnvelopeOpenClawChannelConnectResult:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/OpenClawChannelConnectResult'
+    EnvelopeOpenClawChannelTestResult:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/OpenClawChannelTestResult'
+    EnvelopeOpenClawChannelRuntimeStatus:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/OpenClawChannelRuntimeStatus'
+    EnvelopeOpenClawQrSession:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/OpenClawQrSession'
+    EnvelopeOpenClawChannelLogs:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/OpenClawChannelLogs'
+    EnvelopeOpenClawQrDiagnostics:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/OpenClawQrDiagnostics'
+    EnvelopeOpenClawPairingRequests:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/OpenClawPairingRequests'
+    EnvelopeOpenClawConsoleSession:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/OpenClawConsoleSession'
+    EnvelopeOpenClawConsoleHistory:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/OpenClawConsoleHistory'
+    EnvelopeUsage:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/Usage'
+    EnvelopePagedAlerts:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            allOf:
+            - $ref: '#/components/schemas/PagedMeta'
+            - type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Alert'
+    EnvelopeAlert:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/Alert'
+    EnvelopePagedAudits:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            allOf:
+            - $ref: '#/components/schemas/PagedMeta'
+            - type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Audit'
+    EnvelopePagedTenants:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            allOf:
+            - $ref: '#/components/schemas/PagedMeta'
+            - type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Tenant'
+    EnvelopePagedUsers:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            allOf:
+            - $ref: '#/components/schemas/PagedMeta'
+            - type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/User'
+    EnvelopeUser:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/User'
+    EnvelopePagedRoles:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            allOf:
+            - $ref: '#/components/schemas/PagedMeta'
+            - type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Role'
+    EnvelopeConfigCurrent:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/CurrentConfig'
+    EnvelopeConfigVersion:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/ConfigVersion'
+    EnvelopeMonitorOverview:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/MonitorOverview'
+    EnvelopePagedNotifications:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            allOf:
+            - $ref: '#/components/schemas/PagedMeta'
+            - type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Notification'
+    EnvelopeUnreadCount:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/UnreadCount'
+    EnvelopeNotificationReadResult:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/NotificationReadResult'
+    EnvelopeBulkReadResult:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/BulkReadResult'
+    EnvelopeCancelJobResult:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/CancelJobResult'
+    EnvelopePagedSkillPackages:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            allOf:
+            - $ref: '#/components/schemas/PagedMeta'
+            - type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/SkillPackage'
+    InstanceSkill:
+      allOf:
+      - $ref: '#/components/schemas/SkillPackage'
+      - type: object
+        properties:
+          enabled:
+            type: boolean
+    EnvelopePagedInstanceSkills:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            allOf:
+            - $ref: '#/components/schemas/PagedMeta'
+            - type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/InstanceSkill'
+    EnvelopePagedTemplates:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            allOf:
+            - $ref: '#/components/schemas/PagedMeta'
+            - type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Template'
+    EnvelopePagedPlatformSettings:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            type: object
+            properties:
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PlatformSetting'
+    EnvelopePlatformSetting:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/PlatformSetting'
+    EnvelopeOpenClawLiveAcceptanceIndex:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/OpenClawLiveAcceptanceIndex'
+    EnvelopeOpenClawLiveAcceptanceReport:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/OpenClawLiveAcceptanceReport'
+    EnvelopeWsTicket:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/WsTicket'
+    # ── V1.4 NEW: Secrets envelopes ──
+    EnvelopePagedSecrets:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            allOf:
+            - $ref: '#/components/schemas/PagedMeta'
+            - type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/SecretListItem'
+    EnvelopeSecret:
+      allOf:
+      - $ref: '#/components/schemas/EnvelopeBase'
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/SecretListItem'
+  responses:
+    TooManyRequests:
+      description: Rate limit exceeded
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/EnvelopeError'
+    RedirectResponse:
+      description: Temporary redirect
+      headers:
+        Location:
+          schema:
+            type: string
+            format: uri
+        Set-Cookie:
+          schema:
+            type: string
+          description: Present on callback success
+  headers:
+    RetryAfter:
+      description: Seconds until the client may retry
+      schema:
+        type: integer

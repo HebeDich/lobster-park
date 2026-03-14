@@ -1,0 +1,13 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="900" rx="28" fill="#EEF2F7"/>
+  <rect x="48" y="48" width="1504" height="804" rx="24" fill="#F7F9FC" stroke="#D9E0EC"/>
+  <rect x="88" y="88" width="240" height="724" rx="20" fill="#FFFFFF"/>
+  <rect x="360" y="88" width="1152" height="72" rx="16" fill="#FFFFFF"/>
+  <rect x="392" y="204" width="760" height="172" rx="22" fill="#FFFFFF" stroke="#E3E9F2"/>
+  <rect x="1020" y="420" width="420" height="118" rx="24" fill="#3D73F3"/>
+  <rect x="392" y="592" width="860" height="176" rx="22" fill="#FFFFFF" stroke="#E3E9F2"/>
+  <rect x="392" y="804" width="1048" height="48" rx="12" fill="#FFFFFF" stroke="#DCE3EE"/>
+  <text x="800" y="360" fill="#2B3447" font-size="48" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">平台对话截图占位</text>
+  <text x="800" y="418" fill="#6B768E" font-size="24" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">建议替换为平台聊天页真实截图</text>
+  <text x="800" y="838" fill="#8995AE" font-size="20" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">docs/assets/screenshots/platform-chat.svg</text>
+</svg>

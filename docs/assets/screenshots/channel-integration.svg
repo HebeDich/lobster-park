@@ -1,0 +1,15 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="900" rx="28" fill="#0B1020"/>
+  <rect x="48" y="48" width="1504" height="804" rx="24" fill="#11182D" stroke="#25304F"/>
+  <rect x="96" y="96" width="620" height="708" rx="22" fill="#18213A"/>
+  <rect x="756" y="96" width="748" height="708" rx="22" fill="#18213A"/>
+  <rect x="136" y="156" width="540" height="88" rx="16" fill="#23355B"/>
+  <rect x="136" y="272" width="540" height="88" rx="16" fill="#23355B"/>
+  <rect x="136" y="388" width="540" height="88" rx="16" fill="#23355B"/>
+  <rect x="796" y="156" width="668" height="120" rx="18" fill="#23355B"/>
+  <rect x="796" y="304" width="668" height="320" rx="18" fill="#202E4D"/>
+  <rect x="1268" y="696" width="196" height="48" rx="12" fill="#55C58F"/>
+  <text x="800" y="400" fill="#F5F7FF" font-size="48" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">渠道接入截图占位</text>
+  <text x="800" y="460" fill="#99A7C2" font-size="24" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">建议替换为 Telegram / Feishu / WeCom 等渠道配置页面截图</text>
+  <text x="800" y="780" fill="#6F7D99" font-size="22" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">docs/assets/screenshots/channel-integration.svg</text>
+</svg>

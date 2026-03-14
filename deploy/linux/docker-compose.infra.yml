@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: ${LP_POSTGRES_IMAGE:-postgres:15}
+    container_name: lobster-park-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${LP_POSTGRES_DB:-lobster_park}
+      POSTGRES_USER: ${LP_POSTGRES_USER:-lobster}
+      POSTGRES_PASSWORD: ${LP_POSTGRES_PASSWORD:-replace_me_before_first_start}
+    ports:
+      - "127.0.0.1:${LP_POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - lobster_park_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${LP_POSTGRES_USER:-lobster} -d ${LP_POSTGRES_DB:-lobster_park}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: ${LP_REDIS_IMAGE:-redis:7}
+    container_name: lobster-park-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${LP_REDIS_PORT:-56379}:6379"
+    volumes:
+      - lobster_park_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  lobster_park_pg:
+  lobster_park_redis:

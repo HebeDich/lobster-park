@@ -1,0 +1,33 @@
+services:
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    environment:
+      PORT: 3000
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:replace_me_for_public_example@postgres:5432/lobster_park}
+      REDIS_URL: redis://redis:6379
+      SECRET_MASTER_KEY: ${SECRET_MASTER_KEY:-generate_a_64_char_hex_key_before_production_use}
+      OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-https://idp.example.com}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-lobster-park-web}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+      JWT_ACCESS_TTL: 900
+      JWT_REFRESH_TTL: 604800
+      RUNTIME_BASE_PATH: /opt/lobster-park/runtimes
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - '3301:3000'
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    depends_on:
+      - server
+    ports:
+      - '8080:80'

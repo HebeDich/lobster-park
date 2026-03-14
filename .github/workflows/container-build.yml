@@ -1,0 +1,38 @@
+name: Container Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    paths:
+      - 'apps/server/**'
+      - 'apps/web/**'
+      - 'packages/**'
+      - 'docker-compose*.yml'
+      - '.dockerignore'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+
+jobs:
+  docker-config-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Validate docker compose config
+        run: docker compose -f docker-compose.yml -f docker-compose.app.yml config
+
+      - name: Build server image
+        run: docker build -f apps/server/Dockerfile -t lobster-park-server:ci .
+
+      - name: Build web image
+        run: docker build -f apps/web/Dockerfile -t lobster-park-web:ci .
+
+      - name: Build platform runtime image
+        run: docker build -f docker/openclaw-runtime/Dockerfile -t lobster-park-openclaw-runtime:ci .

@@ -1,0 +1,35 @@
+# Local development infrastructure only.
+services:
+  postgres:
+    image: postgres:15
+    container_name: lobster-park-postgres
+    environment:
+      POSTGRES_DB: lobster_park
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5432:5432'
+    volumes:
+      - lobster_park_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d lobster_park']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7
+    container_name: lobster-park-redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - lobster_park_redis:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  lobster_park_pg:
+  lobster_park_redis:

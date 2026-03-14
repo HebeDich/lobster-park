@@ -1,0 +1,11 @@
+node_modules
+.pnpm-store
+.tmp
+.git
+.DS_Store
+apps/server/node_modules
+apps/web/node_modules
+packages/shared/node_modules
+apps/web/dist
+apps/server/dist
+coverage

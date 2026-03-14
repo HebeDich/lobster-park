@@ -1,0 +1,22 @@
+[Unit]
+Description=Lobster Park Control Plane
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=lobster
+Group=lobster
+SupplementaryGroups=docker
+WorkingDirectory=/opt/lobster-park/current/app
+EnvironmentFile=/opt/lobster-park/config/.env
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/env node apps/server/dist/apps/server/src/main.js
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/lobster-park/server.log
+StandardError=append:/var/log/lobster-park/server-error.log
+
+[Install]
+WantedBy=multi-user.target

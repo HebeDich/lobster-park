@@ -1,0 +1,250 @@
+#!/bin/bash
+set -euo pipefail
+
+LP_HOME="${LP_HOME:-/opt/lobster-park}"
+LP_CURRENT_LINK="${LP_CURRENT_LINK:-$LP_HOME/current}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+LOCAL_RELEASE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+usage() {
+  cat <<'EOF'
+Usage: lobster-parkctl <command> [args]
+
+Commands:
+  status
+  start
+  stop
+  restart
+  logs [--follow]
+  doctor
+  env check
+  upgrade <tarball>
+  rollback <version>
+  uninstall [--purge]
+  help
+EOF
+}
+
+resolve_lib_root() {
+  if [ -f "$LP_CURRENT_LINK/lib/common.sh" ]; then
+    printf '%s\n' "$LP_CURRENT_LINK/lib"
+    return 0
+  fi
+
+  if [ -f "$LOCAL_RELEASE_ROOT/lib/common.sh" ]; then
+    printf '%s\n' "$LOCAL_RELEASE_ROOT/lib"
+    return 0
+  fi
+
+  return 1
+}
+
+if [ $# -eq 0 ] || [ "${1:-}" = "help" ] || [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+  usage
+  exit 0
+fi
+
+if LIB_ROOT="$(resolve_lib_root)"; then
+  . "$LIB_ROOT/common.sh"
+  . "$LIB_ROOT/install-env.sh"
+  . "$LIB_ROOT/install-infra.sh"
+  . "$LIB_ROOT/install-service.sh"
+  . "$LIB_ROOT/backup.sh"
+else
+  echo '[lobster-park][error] installation not found under /opt/lobster-park/current or adjacent release bundle' >&2
+  exit 1
+fi
+
+status_cmd() {
+  require_root
+  systemctl --no-pager --full status "$LP_SERVICE_NAME" || true
+  if [ -f "$LP_ENV_FILE" ] && [ -f "$LP_CURRENT_LINK/infra/docker-compose.yml" ]; then
+    docker_compose_infra ps || true
+    load_env_file
+    curl -fsS "http://127.0.0.1:${PORT:-3301}/health" || true
+    printf '\n'
+  fi
+}
+
+start_cmd() {
+  require_root
+  start_infra
+  start_platform_service
+  wait_for_platform_ready || fail 'platform did not become ready'
+  log 'platform started'
+}
+
+stop_cmd() {
+  require_root
+  stop_platform_service
+  log 'platform stopped'
+}
+
+restart_cmd() {
+  require_root
+  restart_platform_service
+  wait_for_platform_ready || fail 'platform did not become ready after restart'
+  log 'platform restarted'
+}
+
+logs_cmd() {
+  if [ "${1:-}" = "--follow" ]; then
+    journalctl -u "$LP_SERVICE_NAME" -f
+    return
+  fi
+  journalctl -u "$LP_SERVICE_NAME" -n 200 --no-pager
+}
+
+doctor_cmd() {
+  require_root
+  command_exists docker || fail 'docker is not installed'
+  command_exists node || fail 'node is not installed'
+  command_exists openclaw || fail 'openclaw is not installed'
+  [ -f "$LP_ENV_FILE" ] || fail "env file missing: $LP_ENV_FILE"
+  load_env_file
+  require_env_keys DATABASE_URL REDIS_URL SECRET_MASTER_KEY LOBSTER_DEFAULT_ADMIN_PASSWORD RUNTIME_BASE_PATH OPENCLAW_BIN OPENCLAW_CONTAINER_IMAGE
+  docker version >/dev/null
+  openclaw --version >/dev/null 2>&1 || warn 'openclaw version probe failed'
+  if ! wait_for_http "http://127.0.0.1:${PORT:-3301}/health" 2 1; then
+    warn 'platform health endpoint is not responding'
+  fi
+  log 'doctor checks completed'
+}
+
+env_check_cmd() {
+  load_env_file
+  require_env_keys DATABASE_URL REDIS_URL SECRET_MASTER_KEY LOBSTER_DEFAULT_ADMIN_PASSWORD RUNTIME_BASE_PATH OPENCLAW_BIN OPENCLAW_CONTAINER_IMAGE
+  log 'env file looks valid'
+}
+
+extract_release_tarball() {
+  local tarball_path="$1"
+  local temp_dir
+  temp_dir="$(mktemp -d)"
+  tar -xzf "$tarball_path" -C "$temp_dir"
+  find "$temp_dir" -mindepth 1 -maxdepth 1 -type d | head -n 1 || true
+}
+
+upgrade_cmd() {
+  require_root
+  local tarball_path="${1:-}"
+  [ -n "$tarball_path" ] || fail 'usage: lobster-parkctl upgrade <tarball>'
+  [ -f "$tarball_path" ] || fail "tarball not found: $tarball_path"
+  local previous_release
+  previous_release="$(resolve_current_target)"
+  local backup_dir
+  backup_dir="$(create_backup_snapshot)"
+  log "backup created: $backup_dir"
+
+  local extracted_root
+  extracted_root="$(extract_release_tarball "$tarball_path")"
+  local version
+  version="$(cat "$extracted_root/VERSION")"
+  local target_release_dir="$LP_RELEASES_DIR/$version"
+  if [ ! -d "$target_release_dir" ]; then
+    mkdir -p "$target_release_dir"
+    cp -a "$extracted_root"/. "$target_release_dir"/
+  fi
+
+  ln -sfn "$target_release_dir" "$LP_CURRENT_LINK"
+  ln -sfn "$LP_CURRENT_LINK/bin/lobster-parkctl" "$LP_LOCAL_BIN_DIR/lobster-parkctl"
+  install_service_unit
+  run_database_setup
+  restart_platform_service
+  if ! wait_for_platform_ready; then
+    warn 'upgrade health check failed, attempting rollback to previous release'
+    if [ -n "${previous_release:-}" ] && [ -d "$previous_release" ]; then
+      ln -sfn "$previous_release" "$LP_CURRENT_LINK"
+      restart_platform_service || true
+    fi
+    fail 'upgrade failed'
+  fi
+  log "upgrade complete: $version"
+}
+
+rollback_cmd() {
+  require_root
+  local version="${1:-}"
+  [ -n "$version" ] || fail 'usage: lobster-parkctl rollback <version>'
+  local target_release_dir="$LP_RELEASES_DIR/$version"
+  [ -d "$target_release_dir" ] || fail "release version not found: $version"
+  ln -sfn "$target_release_dir" "$LP_CURRENT_LINK"
+  ln -sfn "$LP_CURRENT_LINK/bin/lobster-parkctl" "$LP_LOCAL_BIN_DIR/lobster-parkctl"
+  restart_platform_service
+  wait_for_platform_ready || fail 'rollback health check failed'
+  log "rollback complete: $version"
+}
+
+uninstall_cmd() {
+  require_root
+  local purge="${1:-}"
+  disable_platform_service
+  rm -f "/etc/systemd/system/${LP_SERVICE_NAME}.service"
+  systemctl daemon-reload
+  rm -f "$LP_LOCAL_BIN_DIR/lobster-parkctl"
+  destroy_infra
+
+  if [ "$purge" = "--purge" ]; then
+    rm -rf "$LP_HOME" "$LP_LOG_DIR"
+    log 'complete uninstall finished'
+    return
+  fi
+
+  log 'service removed; release files and data directories preserved'
+}
+
+case "${1:-help}" in
+  status)
+    shift
+    status_cmd "$@"
+    ;;
+  start)
+    shift
+    start_cmd "$@"
+    ;;
+  stop)
+    shift
+    stop_cmd "$@"
+    ;;
+  restart)
+    shift
+    restart_cmd "$@"
+    ;;
+  logs)
+    shift
+    logs_cmd "$@"
+    ;;
+  doctor)
+    shift
+    doctor_cmd "$@"
+    ;;
+  env)
+    shift
+    subcommand="${1:-}"
+    if [ "$subcommand" != "check" ]; then
+      usage
+      exit 1
+    fi
+    shift
+    env_check_cmd "$@"
+    ;;
+  upgrade)
+    shift
+    upgrade_cmd "$@"
+    ;;
+  rollback)
+    shift
+    rollback_cmd "$@"
+    ;;
+  uninstall)
+    shift
+    uninstall_cmd "$@"
+    ;;
+  help|--help|-h)
+    usage
+    ;;
+  *)
+    usage
+    exit 1
+    ;;
+esac

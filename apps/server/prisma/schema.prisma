@@ -1,0 +1,337 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-1.1.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id        String               @id
+  name      String
+  status    String               @default("active")
+  quotaJson Json?
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  users     User[]
+  instances Instance[]
+  alerts    AlertRecord[]
+  nodes     NodeRecord[]
+  audits    AuditLog[]
+}
+
+model User {
+  id                String               @id
+  tenantId          String
+  email             String               @unique
+  displayName       String
+  status            String               @default("active")
+  roleCodes         String[]             @default([])
+  passwordHash      String?
+  passwordUpdatedAt DateTime?
+  lastLoginAt       DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  tenant            Tenant               @relation(fields: [tenantId], references: [id])
+  notifications     NotificationRecord[] @relation("NotificationRecipient")
+}
+
+model Instance {
+  id                     String               @id
+  tenantId               String
+  ownerUserId            String
+  name                   String
+  description            String?
+  specCode               String
+  runtimeVersion         String
+  lifecycleStatus        String
+  healthStatus           String?
+  currentActiveVersionId String?
+  deletedAt              DateTime?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  tenant                 Tenant               @relation(fields: [tenantId], references: [id])
+  runtimeBinding         RuntimeBinding?
+  secrets                InstanceSecret[]
+  configDraft            ConfigDraft?
+  configVersions         ConfigVersion[]
+  alerts                 AlertRecord[]
+  nodes                  NodeRecord[]         @relation("InstanceNodes")
+  pairingRequests        PairingRequestRecord[]
+  instanceSkills         InstanceSkillBinding[]
+
+  @@index([tenantId, name])
+}
+
+model RuntimeBinding {
+  id               String    @id
+  instanceId       String    @unique
+  isolationMode    String
+  runtimeVersion   String
+  hostNode         String?
+  processId        String?
+  portBindingsJson Json
+  configPath       String
+  workspacePath    String
+  statePath        String
+  logPath          String
+  startedAt        DateTime?
+  lastHeartbeatAt  DateTime?
+  deletedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  instance         Instance  @relation(fields: [instanceId], references: [id])
+}
+
+model InstanceSecret {
+  id            String   @id
+  instanceId    String
+  secretKey     String
+  cipherValue   String
+  maskedPreview String
+  secretVersion Int      @default(1)
+  expiresAt     DateTime?
+  createdBy     String
+  updatedBy     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  instance      Instance @relation(fields: [instanceId], references: [id])
+
+  @@unique([instanceId, secretKey])
+}
+
+model ConfigDraft {
+  id            String   @id
+  instanceId     String   @unique
+  schemaVersion  String
+  draftJson      Json
+  dirtyFlag      Boolean  @default(false)
+  updatedBy      String
+  updatedAt      DateTime @updatedAt
+  createdAt      DateTime @default(now())
+  instance       Instance @relation(fields: [instanceId], references: [id])
+}
+
+model ConfigVersion {
+  id                   String   @id
+  instanceId           String
+  versionNo            Int
+  versionStatus        String
+  sourceType           String   @default("publish")
+  normalizedConfigJson Json
+  validationErrorsJson Json?
+  publishNote          String?
+  createdBy            String
+  createdAt            DateTime @default(now())
+  activatedAt          DateTime?
+  instance             Instance @relation(fields: [instanceId], references: [id])
+
+  @@unique([instanceId, versionNo])
+}
+
+model JobRecord {
+  id           String   @id
+  tenantId     String?
+  instanceId   String?
+  jobType      String
+  jobStatus    String
+  progress     Int      @default(0)
+  errorCode    Int?
+  errorMessage String?
+  requestId    String
+  payloadJson  Json?
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model AlertRecord {
+  id          String    @id
+  tenantId    String
+  instanceId  String?
+  severity    String
+  status      String
+  title       String
+  description String?
+  eventKey    String?
+  ackedBy     String?
+  ackedAt     DateTime?
+  resolvedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  instance    Instance? @relation(fields: [instanceId], references: [id])
+}
+
+model NotificationRecord {
+  id              String   @id
+  tenantId        String
+  alertId         String?
+  eventType       String
+  channelType     String
+  recipientUserId String?
+  recipient       String
+  title           String
+  contentJson     Json?
+  sendStatus      String
+  retryCount      Int      @default(0)
+  lastError       String?
+  readAt          DateTime?
+  sentAt          DateTime?
+  createdAt       DateTime @default(now())
+  recipientUser   User?    @relation("NotificationRecipient", fields: [recipientUserId], references: [id])
+}
+
+model NodeRecord {
+  id               String    @id
+  tenantId         String
+  boundInstanceId  String?
+  pairingStatus    String
+  onlineStatus     String
+  lastSeenAt       DateTime?
+  metadataJson     Json?
+  capabilitiesJson Json?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  tenant           Tenant    @relation(fields: [tenantId], references: [id])
+  boundInstance    Instance? @relation("InstanceNodes", fields: [boundInstanceId], references: [id])
+}
+
+model PairingRequestRecord {
+  id              String   @id
+  tenantId        String
+  instanceId      String
+  nodeFingerprint String
+  pairingStatus   String
+  requestedAt     DateTime @default(now())
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  reason          String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  instance        Instance @relation(fields: [instanceId], references: [id])
+}
+
+model AuditLog {
+  id             String   @id
+  tenantId       String
+  actionType     String
+  actionResult   String
+  operatorUserId String
+  targetType     String
+  targetId       String
+  summary        String?
+  traceId        String
+  riskLevel      String
+  beforeJson     Json?
+  afterJson      Json?
+  metadataJson   Json?
+  createdAt      DateTime @default(now())
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+}
+
+model SkillPackage {
+  id                 String   @id
+  sourceType         String
+  sourceUri          String
+  version            String
+  reviewStatus       String
+  riskLevel          String
+  tenantPolicyEffect String?
+  metadataJson       Json?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model TemplateRecord {
+  id           String   @id
+  tenantScope  String
+  name         String
+  templateType String
+  specCode     String
+  status       String
+  configJson   Json
+  createdBy    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model PlatformSetting {
+  id               String   @id
+  settingKey       String   @unique
+  settingValueJson Json?
+  description      String?
+  updatedBy        String?
+  updatedAt        DateTime @updatedAt
+  createdAt        DateTime @default(now())
+}
+
+
+model IdempotencyRecord {
+  id             String   @id
+  idempotencyKey String
+  scope          String
+  operatorUserId String
+  responseJson   Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([idempotencyKey, scope, operatorUserId])
+}
+
+
+model SessionRecord {
+  id          String   @id
+  tokenHash   String   @unique
+  sessionType String
+  userId      String
+  tenantId    String
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  metadataJson Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model OidcStateRecord {
+  id           String   @id
+  state        String   @unique
+  nonce        String
+  codeVerifier String
+  redirectUri  String
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+
+model AuditOutboxRecord {
+  id          String   @id
+  tenantId    String
+  auditLogId  String   @unique
+  status      String
+  attempts    Int      @default(0)
+  availableAt DateTime @default(now())
+  lastError   String?
+  payloadJson Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+
+model InstanceSkillBinding {
+  id         String   @id
+  instanceId String
+  skillId    String
+  enabled    Boolean  @default(true)
+  createdBy  String
+  updatedBy  String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  instance   Instance @relation(fields: [instanceId], references: [id])
+
+  @@unique([instanceId, skillId])
+}
