@@ -46,6 +46,7 @@ const auditPageLoader = () => import('@/pages/audit/AuditPage');
 const notificationsPageLoader = () => import('@/pages/notifications/NotificationsPage');
 const jobsPageLoader = () => import('@/pages/jobs/JobsPage');
 const skillsPageLoader = () => import('@/pages/skills/SkillsPage');
+const skillManagePageLoader = () => import('@/pages/skills/SkillManagePage');
 const tenantUsersPageLoader = () => import('@/pages/tenant/TenantUsersPage');
 const tenantRolesPageLoader = () => import('@/pages/tenant/TenantRolesPage');
 const platformSettingsPageLoader = () => import('@/pages/platform/PlatformSettingsPage');
@@ -80,6 +81,7 @@ const routeComponentLoaders = [
   { path: '/notifications', loader: notificationsPageLoader },
   { path: '/jobs', loader: jobsPageLoader },
   { path: '/skills', loader: skillsPageLoader },
+  { path: '/platform/skills', loader: skillManagePageLoader },
   { path: '/tenant/users', loader: tenantUsersPageLoader },
   { path: '/tenant/roles', loader: tenantRolesPageLoader },
   { path: '/platform/settings', loader: platformSettingsPageLoader },
@@ -118,6 +120,7 @@ const AuditPage = lazyNamed(auditPageLoader, 'AuditPage');
 const NotificationsPage = lazyNamed(notificationsPageLoader, 'NotificationsPage');
 const JobsPage = lazyNamed(jobsPageLoader, 'JobsPage');
 const SkillsPage = lazyNamed(skillsPageLoader, 'SkillsPage');
+const SkillManagePage = lazyNamed(skillManagePageLoader, 'SkillManagePage');
 const TenantUsersPage = lazyNamed(tenantUsersPageLoader, 'TenantUsersPage');
 const TenantRolesPage = lazyNamed(tenantRolesPageLoader, 'TenantRolesPage');
 const PlatformSettingsPage = lazyNamed(platformSettingsPageLoader, 'PlatformSettingsPage');
@@ -172,6 +175,7 @@ export const appRoutes: AppRoute[] = [
   withPermission({ path: '/skills', title: '技能中心', permission: 'skill.view', adminOnly: true, menuKey: 'skills', group: 'main', component: <SkillsPage /> }),
   withPermission({ path: '/tenant/users', title: '用户管理', permission: 'user.manage', adminOnly: true, menuKey: 'tenant-users', group: 'main', component: <TenantUsersPage /> }),
   withPermission({ path: '/tenant/roles', title: '角色权限', permission: 'tenant.manage', adminOnly: true, menuKey: 'tenant-roles', group: 'main', component: <TenantRolesPage /> }),
+  withPermission({ path: '/platform/skills', title: '技能管理', permission: 'skill.manage', adminOnly: true, menuKey: 'platform-skills', group: 'main', component: <SkillManagePage /> }),
   withPermission({ path: '/platform/settings', title: '平台设置', permission: ['platform.settings.view', 'platform.settings.manage'], adminOnly: true, menuKey: 'platform-settings', group: 'main', component: <PlatformSettingsPage /> }),
   withPermission({ path: '/platform/openclaw/acceptance', title: '联调验收中心', permission: ['platform.settings.view', 'platform.settings.manage'], adminOnly: true, menuKey: 'platform-acceptance', group: 'main', component: <OpenClawAcceptanceCenterPage /> }),
 ];

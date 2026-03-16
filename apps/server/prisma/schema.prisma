@@ -242,6 +242,11 @@ model SkillPackage {
   riskLevel          String
   tenantPolicyEffect String?
   metadataJson       Json?
+  contentJson        Json?
+  contentHash        String?
+  contentStoragePath String?
+  packageSize        Int?
+  createdBy          String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }

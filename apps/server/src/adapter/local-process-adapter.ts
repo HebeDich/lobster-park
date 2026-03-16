@@ -84,6 +84,18 @@ export class LocalProcessAdapter implements RuntimeAdapter {
     return Object.fromEntries(rows.map((row) => [row.secretKey, decodeCipherValue(row.cipherValue)]));
   }
 
+  private async resolveSkillContents(instanceId: string) {
+    const bindings = await this.prisma.instanceSkillBinding.findMany({ where: { instanceId, enabled: true } });
+    if (bindings.length === 0) return [];
+    const skillIds = bindings.map((b: { skillId: string }) => b.skillId);
+    const skills = await this.prisma.skillPackage.findMany({ where: { id: { in: skillIds }, reviewStatus: 'approved' } });
+    return skills.map((skill: { id: string; contentJson: unknown; contentStoragePath: string | null }) => ({
+      id: skill.id,
+      content: skill.contentJson,
+      storagePath: skill.contentStoragePath,
+    }));
+  }
+
   private async writeMaterializedConfig(instanceId: string, configJson: Record<string, AnyJsonValue>, secretRefs: string[], gatewayToken?: string | null) {
     const basePath = await this.getRuntimeBasePath();
     const paths = buildRuntimePaths(basePath, instanceId);
@@ -91,9 +103,11 @@ export class LocalProcessAdapter implements RuntimeAdapter {
     const secretMap = await this.resolveSecrets(instanceId, secretRefs);
     const runtimeConfig = materializeSecrets(configJson, secretMap);
     const pluginLoadPaths = await this.pluginRuntimeService.ensureRequiredPluginLoadPaths(runtimeConfig);
+    const skillContents = await this.resolveSkillContents(instanceId);
     const openClawConfig = toOpenClawRuntimeConfig(runtimeConfig, {
       workspaceDir: paths.workspacePath,
       pluginLoadPaths,
+      skillContents,
     }) as Record<string, AnyJsonValue>;
     const existingGateway = typeof openClawConfig.gateway === 'object' && openClawConfig.gateway !== null
       ? openClawConfig.gateway as Record<string, AnyJsonValue>

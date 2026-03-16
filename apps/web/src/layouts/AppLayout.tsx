@@ -37,6 +37,7 @@ const iconMap: Record<string, React.ReactNode> = {
   notifications: <BellOutlined />,
   jobs: <ScheduleOutlined />,
   skills: <SafetyOutlined />,
+  'platform-skills': <SafetyOutlined />,
   'tenant-users': <TeamOutlined />,
   'tenant-roles': <ApartmentOutlined />,
   'platform-settings': <SettingOutlined />,

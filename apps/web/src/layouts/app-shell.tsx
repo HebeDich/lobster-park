@@ -10,6 +10,7 @@ const items = [
   { key: '/alerts', label: '告警' },
   { key: '/audit', label: '审计' },
   { key: '/skills', label: '技能' },
+  { key: '/platform/skills', label: '技能管理' },
   { key: '/tenant/users', label: '用户管理' },
   { key: '/tenant/roles', label: '角色权限' },
   { key: '/platform/settings', label: '平台设置' }

@@ -372,7 +372,35 @@ function buildAgentsRuntimeConfig(agents: Record<string, unknown>[], models: Rec
   };
 }
 
-export function toOpenClawRuntimeConfig(platformConfig: AnyJsonValue, options?: { workspaceDir?: string; pluginLoadPaths?: string[] }) {
+export type SkillContentItem = {
+  id: string;
+  content: unknown;
+  storagePath: string | null;
+};
+
+function buildSkillsConfig(skillContents: SkillContentItem[]) {
+  if (skillContents.length === 0) return null;
+  const items = skillContents
+    .filter((item) => item.content)
+    .map((item) => {
+      const content = isRecord(item.content) ? item.content : {};
+      return prune({
+        id: item.id,
+        ...(typeof content.type === 'string' ? { type: content.type } : {}),
+        ...(typeof content.systemPromptAppend === 'string' ? { systemPromptAppend: content.systemPromptAppend } : {}),
+        ...(typeof content.systemPromptPrepend === 'string' ? { systemPromptPrepend: content.systemPromptPrepend } : {}),
+        ...(Array.isArray(content.tools) ? { tools: content.tools } : {}),
+        ...(Array.isArray(content.constraints) ? { constraints: content.constraints } : {}),
+        ...(typeof content.injectionMode === 'string' ? { injectionMode: content.injectionMode } : {}),
+        ...(item.storagePath ? { storagePath: item.storagePath } : {}),
+        ...(typeof content.entry === 'string' ? { entry: content.entry } : {}),
+      });
+    })
+    .filter((item) => Object.keys(item).length > 1);
+  return items.length > 0 ? items : null;
+}
+
+export function toOpenClawRuntimeConfig(platformConfig: AnyJsonValue, options?: { workspaceDir?: string; pluginLoadPaths?: string[]; skillContents?: SkillContentItem[] }) {
   const config = asRecord(platformConfig);
   const general = asRecord(config.general);
   const models = asArray(config.models).filter(isRecord);
@@ -408,5 +436,6 @@ export function toOpenClawRuntimeConfig(platformConfig: AnyJsonValue, options?: 
     agents: buildAgentsRuntimeConfig(agents, models, general, options),
     ...(runtimeChannels ? { channels: runtimeChannels } : {}),
     ...(runtimeBindings ? { bindings: runtimeBindings } : {}),
+    ...(options?.skillContents ? (() => { const sc = buildSkillsConfig(options.skillContents); return sc ? { skills: sc } : {}; })() : {}),
   });
 }

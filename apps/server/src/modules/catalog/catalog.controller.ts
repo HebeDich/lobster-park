@@ -19,13 +19,7 @@ export class CatalogController {
   @Get('catalog/skills')
   async listSkills(@CurrentUser() currentUser: RequestUserContext, @Query('pageNo') pageNo = '1', @Query('pageSize') pageSize = '20') {
     this.authService.requirePermission(currentUser, 'skill.view');
-    const take = Number(pageSize);
-    const skip = (Number(pageNo) - 1) * take;
-    const [total, items] = await Promise.all([
-      this.prisma.skillPackage.count(),
-      this.prisma.skillPackage.findMany({ orderBy: { createdAt: 'asc' }, skip, take }),
-    ]);
-    return { pageNo: Number(pageNo), pageSize: take, total, items };
+    return this.skillsService.listSkillsPublic(Number(pageNo), Number(pageSize));
   }
 
   @Get('instances/:instanceId/skills')
