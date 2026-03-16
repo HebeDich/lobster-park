@@ -71,6 +71,14 @@
 - **改了哪些文件**：
   - 修改 `packages/shared/src/constants/permissions.ts` — 添加 skillManage 权限定义
 
+## 2026-03-17 01:49
+
+- **发现什么问题**：上传 ZIP 技能包时后端返回 502 Bad Gateway。根因：`@nestjs/platform-express` 的 `FileInterceptor` 依赖 `multer`，但 `apps/server/package.json` 中未声明 `multer` 依赖
+- **使用了什么方式解决**：在 `apps/server/package.json` 中添加 `multer: ^1.4.5-lts.1`（dependencies）和 `@types/multer: ^1.4.12`（devDependencies），同时将 controller 中文件参数类型恢复为标准 `Express.Multer.File`
+- **改了哪些文件**：
+  - 修改 `apps/server/package.json` — 添加 multer 和 @types/multer 依赖
+  - 修改 `apps/server/src/modules/skills/skills.controller.ts` — 文件参数恢复为 Express.Multer.File 类型
+
 ## 2026-03-17 01:33
 
 - **发现什么问题**：`update-ubuntu.sh` 执行数据库迁移时使用 `npx prisma` 拉取了全局最新 Prisma 7.5.0，而项目锁定 5.22.0，导致 schema 验证失败（Prisma 7 不再支持 `datasource.url`）
