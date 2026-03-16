@@ -73,7 +73,8 @@ export class SkillsController {
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 50 * 1024 * 1024 } }))
   async uploadSkillPackage(
     @CurrentUser() currentUser: RequestUserContext,
-    @UploadedFile() file: Express.Multer.File,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    @UploadedFile() file: any,
     @Body() body: Record<string, unknown>,
   ) {
     this.authService.requirePermission(currentUser, 'skill.manage');
