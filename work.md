@@ -64,6 +64,13 @@
   - 修改 `apps/server/src/adapter/openclaw-runtime-config.ts` — prune 参数加 AnyJsonValue 断言
   - 修改 `apps/server/src/modules/skills/skills.controller.ts` — 文件上传参数改为内联类型
 
+## 2026-03-17 01:39
+
+- **发现什么问题**：管理员访问 `/platform/skills` 提示 403 权限不足。根因：`packages/shared/src/constants/permissions.ts` 中 `PERMISSIONS` 常量缺少 `skillManage: 'skill.manage'`，导致 `platform_admin` 角色的 `Object.values(PERMISSIONS)` 不包含该权限
+- **使用了什么方式解决**：在 `PERMISSIONS` 常量中添加 `skillManage: 'skill.manage'`
+- **改了哪些文件**：
+  - 修改 `packages/shared/src/constants/permissions.ts` — 添加 skillManage 权限定义
+
 ## 2026-03-17 01:33
 
 - **发现什么问题**：`update-ubuntu.sh` 执行数据库迁移时使用 `npx prisma` 拉取了全局最新 Prisma 7.5.0，而项目锁定 5.22.0，导致 schema 验证失败（Prisma 7 不再支持 `datasource.url`）

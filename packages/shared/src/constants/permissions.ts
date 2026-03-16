@@ -28,6 +28,7 @@ export const PERMISSIONS = {
   skillView: 'skill.view',
   skillEnable: 'skill.enable',
   skillDisable: 'skill.disable',
+  skillManage: 'skill.manage',
   skillReview: 'skill.review',
   alertView: 'alert.view',
   alertAck: 'alert.ack',
