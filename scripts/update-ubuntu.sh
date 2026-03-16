@@ -419,23 +419,27 @@ do_upgrade() {
     log_info "systemd 服务文件已更新"
   fi
 
-  # 执行数据库迁移
+  # 执行数据库迁移（使用项目自带的 prisma，避免全局版本不匹配）
   log_info "执行数据库迁移..."
   local app_dir="$LP_CURRENT_LINK/app"
   if [ -d "$app_dir" ]; then
-    cd "$app_dir"
-    # 加载环境变量
-    set -a
-    . "$LP_ENV_FILE"
-    set +a
-    # Prisma 迁移
-    if [ -d "apps/server/prisma" ]; then
-      npx prisma migrate deploy --schema apps/server/prisma/schema.prisma 2>&1 || log_warn "数据库迁移执行异常，请手动检查"
-    fi
-    # Prisma 种子（如果有新增种子数据）
-    if [ -f "apps/server/prisma/seed.ts" ] || [ -f "apps/server/prisma/seed.js" ]; then
-      npx prisma db seed --schema apps/server/prisma/schema.prisma 2>&1 || log_warn "种子数据执行异常，非关键步骤"
-    fi
+    (
+      cd "$app_dir"
+      # 加载环境变量
+      set -a
+      . "$LP_ENV_FILE"
+      set +a
+      # Prisma 迁移（使用项目 node_modules 中的 prisma）
+      if [ -x "apps/server/node_modules/.bin/prisma" ]; then
+        ./apps/server/node_modules/.bin/prisma migrate deploy --schema apps/server/prisma/schema.prisma 2>&1 || log_warn "数据库迁移执行异常，请手动检查"
+      else
+        log_warn "未找到项目自带的 prisma CLI，跳过数据库迁移"
+      fi
+      # 种子数据（使用项目 node_modules 中的 tsx）
+      if [ -f "apps/server/prisma/seed.ts" ] && [ -x "apps/server/node_modules/.bin/tsx" ]; then
+        ./apps/server/node_modules/.bin/tsx apps/server/prisma/seed.ts 2>&1 || log_warn "种子数据执行异常，非关键步骤"
+      fi
+    )
   fi
 
   # 重启服务

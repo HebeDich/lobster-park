@@ -63,3 +63,10 @@
 - **改了哪些文件**：
   - 修改 `apps/server/src/adapter/openclaw-runtime-config.ts` — prune 参数加 AnyJsonValue 断言
   - 修改 `apps/server/src/modules/skills/skills.controller.ts` — 文件上传参数改为内联类型
+
+## 2026-03-17 01:33
+
+- **发现什么问题**：`update-ubuntu.sh` 执行数据库迁移时使用 `npx prisma` 拉取了全局最新 Prisma 7.5.0，而项目锁定 5.22.0，导致 schema 验证失败（Prisma 7 不再支持 `datasource.url`）
+- **使用了什么方式解决**：改用项目自带的 `./apps/server/node_modules/.bin/prisma` 和 `./apps/server/node_modules/.bin/tsx`，与 `install-service.sh` 中 `run_database_setup()` 保持一致
+- **改了哪些文件**：
+  - 修改 `scripts/update-ubuntu.sh` — 数据库迁移和种子数据改用项目自带 CLI
