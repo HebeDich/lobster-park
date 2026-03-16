@@ -40,3 +40,10 @@
   - 修改 `apps/web/src/router/route-config.tsx` — 注册 /platform/skills 路由和 SkillManagePage 组件
   - 修改 `apps/web/src/layouts/app-shell.tsx` — 侧边栏菜单添加"技能管理"入口
   - 修改 `apps/web/src/layouts/AppLayout.tsx` — iconMap 添加 platform-skills 图标映射
+
+## 2026-03-17 01:17
+
+- **发现什么问题**：项目缺少一键更新脚本，已部署的服务器无法便捷地从源码拉取最新代码并升级
+- **使用了什么方式解决**：编写 `scripts/update-ubuntu.sh` 一键更新脚本，支持：前置检查（验证已有安装）、自动备份（配置+数据库+版本快照）、Git 拉取最新代码（支持 --branch/--tag）、依赖安装+构建发布包、替换发布+数据库迁移+重启服务、健康检查（失败自动回滚到前一版本）、国内镜像加速
+- **改了哪些文件**：
+  - 新增 `scripts/update-ubuntu.sh` — Ubuntu 一键更新脚本
