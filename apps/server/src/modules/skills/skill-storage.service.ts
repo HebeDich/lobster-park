@@ -1,10 +1,8 @@
-import { execFile } from 'node:child_process';
-import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { promisify } from 'node:util';
+import AdmZip from 'adm-zip';
 import { Injectable, BadRequestException } from '@nestjs/common';
 
-const execFileAsync = promisify(execFile);
 const DEFAULT_SKILLS_DIR = process.env.SKILL_STORAGE_DIR || '/opt/lobster-park/skills';
 const MAX_PACKAGE_SIZE = 50 * 1024 * 1024; // 50MB
 
@@ -21,7 +19,7 @@ export type SkillManifest = {
 /**
  * Skill 文件存储服务
  * 负责 ZIP 包上传、解压、校验和文件系统存储。
- * 解压使用系统 unzip 命令（Linux 服务器普遍可用）。
+ * 解压使用 adm-zip 库（纯 Node.js，无需系统 unzip 命令）。
  */
 @Injectable()
 export class SkillStorageService {
@@ -56,17 +54,15 @@ export class SkillStorageService {
     await rm(tempDir, { recursive: true, force: true });
     await mkdir(tempDir, { recursive: true });
 
-    const zipPath = path.join(tempDir, '_package.zip');
-    await writeFile(zipPath, zipBuffer);
-
     const extractDir = path.join(tempDir, 'content');
     await mkdir(extractDir, { recursive: true });
 
     try {
-      await execFileAsync('unzip', ['-o', '-q', zipPath, '-d', extractDir]);
-    } catch {
+      const zip = new AdmZip(zipBuffer);
+      zip.extractAllTo(extractDir, true);
+    } catch (err) {
       await rm(tempDir, { recursive: true, force: true });
-      throw new BadRequestException('ZIP 文件解压失败，请确认文件格式正确且服务器已安装 unzip 命令');
+      throw new BadRequestException(`ZIP 文件解压失败，请确认文件格式正确: ${err instanceof Error ? err.message : String(err)}`);
     }
 
     const manifestPath = path.join(extractDir, 'skill.json');

@@ -73,11 +73,16 @@
 
 ## 2026-03-17 01:49
 
-- **发现什么问题**：上传 ZIP 技能包时后端返回 502 Bad Gateway。根因：`@nestjs/platform-express` 的 `FileInterceptor` 依赖 `multer`，但 `apps/server/package.json` 中未声明 `multer` 依赖
-- **使用了什么方式解决**：在 `apps/server/package.json` 中添加 `multer: ^1.4.5-lts.1`（dependencies）和 `@types/multer: ^1.4.12`（devDependencies），同时将 controller 中文件参数类型恢复为标准 `Express.Multer.File`
+- **发现什么问题**：上传 ZIP 技能包时后端返回 502 Bad Gateway，然后修复后报 400 "ZIP 文件解压失败，请确认文件格式正确且服务器已安装 unzip 命令"
+- **使用了什么方式解决**：
+  1. 添加 `multer`（dependencies）和 `@types/multer`（devDependencies）解决 502
+  2. 将 `Express.Multer.File` 改为 `any` 类型避免全局类型声明问题
+  3. 用 `adm-zip` 纯 Node.js 库替代系统 `unzip` 命令，消除系统依赖
+  4. 添加 `adm-zip`（dependencies）和 `@types/adm-zip`（devDependencies）
 - **改了哪些文件**：
-  - 修改 `apps/server/package.json` — 添加 multer 和 @types/multer 依赖
-  - 修改 `apps/server/src/modules/skills/skills.controller.ts` — 文件参数恢复为 Express.Multer.File 类型
+  - 修改 `apps/server/package.json` — 添加 multer、adm-zip 及其类型声明依赖
+  - 修改 `apps/server/src/modules/skills/skills.controller.ts` — 文件参数改为 any 类型
+  - 修改 `apps/server/src/modules/skills/skill-storage.service.ts` — ZIP 解压从系统 unzip 改为 adm-zip 库
 
 ## 2026-03-17 01:33
 
