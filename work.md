@@ -84,6 +84,13 @@
   - 修改 `apps/server/src/modules/skills/skills.controller.ts` — 文件参数改为 any 类型
   - 修改 `apps/server/src/modules/skills/skill-storage.service.ts` — ZIP 解压从系统 unzip 改为 adm-zip 库
 
+## 2026-03-17 02:00
+
+- **发现什么问题**：一键更新脚本每次构建版本号都是 `0.1.0`（来自 `package.json` 固定值），导致每次更新都覆盖同一目录，无法区分不同次更新和回滚
+- **使用了什么方式解决**：在构建前生成唯一版本号，格式为 `{base_version}+{timestamp}.{git_short_hash}`（如 `0.1.0+20260317020000.abc1234`），通过 `APP_VERSION` 环境变量传给 `build-linux-release.sh`（该脚本已支持 `APP_VERSION` 覆盖）
+- **改了哪些文件**：
+  - 修改 `scripts/update-ubuntu.sh` — 添加 UPDATE_VERSION 全局变量，build_release 中生成唯一版本号并 export APP_VERSION，do_upgrade 中复用同一版本号
+
 ## 2026-03-17 01:33
 
 - **发现什么问题**：`update-ubuntu.sh` 执行数据库迁移时使用 `npx prisma` 拉取了全局最新 Prisma 7.5.0，而项目锁定 5.22.0，导致 schema 验证失败（Prisma 7 不再支持 `datasource.url`）

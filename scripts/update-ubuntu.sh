@@ -57,6 +57,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WORK_DIR=""
 PREVIOUS_RELEASE=""
 BACKUP_DIR=""
+UPDATE_VERSION=""
 
 # ── 帮助 ─────────────────────────────────────────────────────────────────────
 show_help() {
@@ -347,13 +348,23 @@ build_release() {
   log_info "安装项目依赖..."
   COREPACK_HOME="$WORK_DIR/.tmp/corepack" corepack pnpm install --store-dir "$WORK_DIR/.tmp/pnpm-store"
 
+  # 生成唯一版本号：base_version + 时间戳 + git commit hash
+  local base_version
+  base_version="$(node -p "require('./package.json').version")"
+  local git_short
+  git_short="$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown')"
+  local build_ts
+  build_ts="$(date +%Y%m%d%H%M%S)"
+  UPDATE_VERSION="${base_version}+${build_ts}.${git_short}"
+  export APP_VERSION="$UPDATE_VERSION"
+  log_info "构建版本号: $UPDATE_VERSION"
+
   # 构建发布包
   log_info "构建 Linux 发布包..."
   bash scripts/build-linux-release.sh
 
   # 查找生成的发布包
-  local version
-  version="$(node -p "require('./package.json').version")"
+  local version="$UPDATE_VERSION"
   local arch
   case "$(uname -m)" in
     x86_64)  arch="amd64" ;;
@@ -377,8 +388,7 @@ do_upgrade() {
 
   cd "$WORK_DIR"
 
-  local version
-  version="$(node -p "require('./package.json').version")"
+  local version="$UPDATE_VERSION"
   local arch
   case "$(uname -m)" in
     x86_64)  arch="amd64" ;;
