@@ -144,8 +144,8 @@ export class SkillsService {
     if (!input.version?.trim()) throw new BadRequestException('version 不能为空');
 
     const skillId = `skl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    let encryptedContent: Prisma.InputJsonValue | null = null;
-    let contentHash: string | null = null;
+    let encryptedContent: Prisma.InputJsonValue | undefined = undefined;
+    let contentHash: string | undefined = undefined;
 
     if (input.contentJson) {
       encryptedContent = this.crypto.encrypt(input.contentJson) as unknown as Prisma.InputJsonValue;
@@ -164,7 +164,7 @@ export class SkillsService {
         reviewStatus: 'approved',
         riskLevel: input.riskLevel || 'low',
         tenantPolicyEffect: 'allow',
-        metadataJson: metadata,
+        metadataJson: metadata as unknown as Prisma.InputJsonValue,
         contentJson: encryptedContent,
         contentHash,
         createdBy: currentUser.id,
@@ -201,7 +201,7 @@ export class SkillsService {
       const existingMeta = (existing.metadataJson && typeof existing.metadataJson === 'object' ? existing.metadataJson : {}) as Record<string, unknown>;
       if (input.name !== undefined) existingMeta.name = input.name.trim();
       if (input.description !== undefined) existingMeta.description = input.description.trim();
-      data.metadataJson = existingMeta;
+      data.metadataJson = existingMeta as unknown as Prisma.InputJsonValue;
     }
 
     if (input.contentJson !== undefined) {
@@ -259,23 +259,17 @@ export class SkillsService {
 
   /** ZIP 包上传创建/更新 Skill */
   async uploadSkillPackage(currentUser: RequestUserContext, skillId: string | null, zipBuffer: Buffer) {
-    const result = await this.storage.saveZipPackage(
-      skillId || `skl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      'latest',
-      zipBuffer,
-    );
+    const result = await this.storage.saveZipPackage(skillId, zipBuffer);
 
-    const metadata: Record<string, unknown> = { name: result.manifest.name };
-    if (result.manifest.description) metadata.description = result.manifest.description;
+    const metadata: Record<string, unknown> = { name: result.manifest.name, description: result.manifest.description };
     if (result.manifest.type) metadata.type = result.manifest.type;
     if (result.manifest.entry) metadata.entry = result.manifest.entry;
+    const metadataJsonValue = metadata as unknown as Prisma.InputJsonValue;
 
-    // 加密 manifest 作为 contentJson
     const encryptedContent = this.crypto.encrypt(result.manifest) as unknown as Prisma.InputJsonValue;
     const contentHash = this.crypto.hash(result.manifest);
 
     if (skillId) {
-      // 更新现有 Skill
       const existing = await this.prisma.skillPackage.findUnique({ where: { id: skillId } });
       if (!existing) throw new NotFoundException('skill not found');
 
@@ -283,7 +277,7 @@ export class SkillsService {
         where: { id: skillId },
         data: {
           version: result.manifest.version,
-          metadataJson: metadata,
+          metadataJson: metadataJsonValue,
           contentJson: encryptedContent,
           contentHash,
           contentStoragePath: result.storagePath,
@@ -306,7 +300,6 @@ export class SkillsService {
       return stripSensitive(updated);
     }
 
-    // 创建新 Skill
     const newSkillId = `skl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const created = await this.prisma.skillPackage.create({
       data: {
@@ -317,7 +310,7 @@ export class SkillsService {
         reviewStatus: 'approved',
         riskLevel: 'low',
         tenantPolicyEffect: 'allow',
-        metadataJson: metadata,
+        metadataJson: metadataJsonValue,
         contentJson: encryptedContent,
         contentHash,
         contentStoragePath: result.storagePath,

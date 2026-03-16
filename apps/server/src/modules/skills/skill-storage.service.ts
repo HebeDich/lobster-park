@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { Injectable, BadRequestException } from '@nestjs/common';
@@ -45,25 +45,27 @@ export class SkillStorageService {
    * 保存上传的 ZIP 包并解压到目标目录
    * @returns 解压后的目录路径和 skill.json 内容
    */
-  async saveZipPackage(skillId: string, version: string, zipBuffer: Buffer): Promise<{ storagePath: string; manifest: SkillManifest; packageSize: number }> {
+  async saveZipPackage(skillId: string | null, zipBuffer: Buffer): Promise<{ storagePath: string; manifest: SkillManifest; packageSize: number }> {
     if (zipBuffer.length > MAX_PACKAGE_SIZE) {
       throw new BadRequestException(`ZIP 包大小超过限制 (${MAX_PACKAGE_SIZE / 1024 / 1024}MB)`);
     }
 
-    const targetDir = this.getSkillDir(skillId, version);
-    await rm(targetDir, { recursive: true, force: true });
-    await mkdir(targetDir, { recursive: true });
+    // 先解压到临时目录以读取 manifest
+    const tempId = skillId || `_tmp_${Date.now()}`;
+    const tempDir = path.join(this.baseDir, tempId, '_upload_tmp');
+    await rm(tempDir, { recursive: true, force: true });
+    await mkdir(tempDir, { recursive: true });
 
-    const zipPath = path.join(targetDir, '_package.zip');
+    const zipPath = path.join(tempDir, '_package.zip');
     await writeFile(zipPath, zipBuffer);
 
-    const extractDir = path.join(targetDir, 'content');
+    const extractDir = path.join(tempDir, 'content');
     await mkdir(extractDir, { recursive: true });
 
     try {
       await execFileAsync('unzip', ['-o', '-q', zipPath, '-d', extractDir]);
     } catch {
-      await rm(targetDir, { recursive: true, force: true });
+      await rm(tempDir, { recursive: true, force: true });
       throw new BadRequestException('ZIP 文件解压失败，请确认文件格式正确且服务器已安装 unzip 命令');
     }
 
@@ -73,17 +75,28 @@ export class SkillStorageService {
       const raw = await readFile(manifestPath, 'utf-8');
       manifest = JSON.parse(raw) as SkillManifest;
     } catch {
-      await rm(targetDir, { recursive: true, force: true });
+      await rm(tempDir, { recursive: true, force: true });
       throw new BadRequestException('ZIP 包中缺少 skill.json 或格式不正确');
     }
 
     if (!manifest.name || !manifest.version) {
-      await rm(targetDir, { recursive: true, force: true });
+      await rm(tempDir, { recursive: true, force: true });
       throw new BadRequestException('skill.json 必须包含 name 和 version 字段');
     }
 
+    // 移动到最终目录 baseDir/{skillId}/{version}/content
+    const finalSkillId = skillId || tempId;
+    const finalDir = this.getSkillDir(finalSkillId, manifest.version);
+    if (finalDir !== tempDir) {
+      await rm(finalDir, { recursive: true, force: true });
+      await mkdir(path.dirname(finalDir), { recursive: true });
+      await rename(tempDir, finalDir);
+    }
+
+    const finalExtractDir = path.join(finalDir, 'content');
+
     return {
-      storagePath: extractDir,
+      storagePath: finalExtractDir,
       manifest,
       packageSize: zipBuffer.length,
     };

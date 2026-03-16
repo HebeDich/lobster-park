@@ -47,3 +47,11 @@
 - **使用了什么方式解决**：编写 `scripts/update-ubuntu.sh` 一键更新脚本，支持：前置检查（验证已有安装）、自动备份（配置+数据库+版本快照）、Git 拉取最新代码（支持 --branch/--tag）、依赖安装+构建发布包、替换发布+数据库迁移+重启服务、健康检查（失败自动回滚到前一版本）、国内镜像加速
 - **改了哪些文件**：
   - 新增 `scripts/update-ubuntu.sh` — Ubuntu 一键更新脚本
+
+## 2026-03-17 01:22
+
+- **发现什么问题**：`skills.service.ts` 编译报 6 个 TypeScript 错误：① `Record<string, unknown>` 不兼容 Prisma 的 `InputJsonValue` 类型 ② `null` 不能赋值给 Prisma JSON 字段 ③ `saveZipPackage` 方法签名需要 3 参数但调用处传了 2 个
+- **使用了什么方式解决**：① `metadata` 强转 `as unknown as Prisma.InputJsonValue` ② `encryptedContent` 初始值改为 `undefined` ③ 重写 `skill-storage.service.ts` 的 `saveZipPackage` 签名为 `(skillId: string | null, zipBuffer: Buffer)`，内部先解压到临时目录读取 manifest 获取版本号再 rename 到最终目录 ④ 修复 `uploadSkillPackage` 方法中被损坏的代码结构
+- **改了哪些文件**：
+  - 修改 `apps/server/src/modules/skills/skills.service.ts` — 修复 Prisma 类型强转、修复 uploadSkillPackage 方法结构
+  - 修改 `apps/server/src/modules/skills/skill-storage.service.ts` — saveZipPackage 改为 2 参数签名，内部自动从 manifest 读取版本
