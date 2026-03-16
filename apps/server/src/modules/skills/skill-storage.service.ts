@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, rm, stat } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rename, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 import AdmZip from 'adm-zip';
 import { Injectable, BadRequestException } from '@nestjs/common';
@@ -71,13 +71,13 @@ export class SkillStorageService {
       const raw = await readFile(manifestPath, 'utf-8');
       manifest = JSON.parse(raw) as SkillManifest;
     } catch {
-      await rm(tempDir, { recursive: true, force: true });
-      throw new BadRequestException('ZIP 包中缺少 skill.json 或格式不正确');
+      // 没有 skill.json，尝试从文件内容自动推断 manifest
+      manifest = await this.inferManifest(extractDir);
     }
 
     if (!manifest.name || !manifest.version) {
       await rm(tempDir, { recursive: true, force: true });
-      throw new BadRequestException('skill.json 必须包含 name 和 version 字段');
+      throw new BadRequestException('无法确定技能名称和版本。请在 ZIP 包中包含 skill.json，或至少包含一个 .md 文件');
     }
 
     // 移动到最终目录 baseDir/{skillId}/{version}/content
@@ -117,6 +117,34 @@ export class SkillStorageService {
   async removeSkillStorage(skillId: string): Promise<void> {
     const skillDir = path.join(this.baseDir, skillId);
     await rm(skillDir, { recursive: true, force: true });
+  }
+
+  /** 从解压目录中自动推断 manifest（无 skill.json 时的回退逻辑） */
+  private async inferManifest(extractDir: string): Promise<SkillManifest> {
+    const files = await readdir(extractDir);
+    // 优先查找 skill.md / README.md / 任意 .md 文件作为入口
+    const mdFiles = files.filter((f: string) => f.endsWith('.md'));
+    const entry = mdFiles.find((f: string) => f === 'skill.md')
+      || mdFiles.find((f: string) => f.toLowerCase() === 'readme.md')
+      || mdFiles[0];
+
+    if (!entry) {
+      return { name: '', version: '' };
+    }
+
+    // 用入口文件名（去后缀）作为 skill 名称
+    const baseName = path.basename(entry, path.extname(entry));
+    const name = baseName === 'skill' || baseName.toLowerCase() === 'readme'
+      ? path.basename(extractDir) || 'unnamed-skill'
+      : baseName;
+
+    return {
+      name,
+      version: '1.0.0',
+      type: 'prompt',
+      entry,
+      promptFiles: mdFiles,
+    };
   }
 
   /** 检查 Skill 存储路径是否存在 */

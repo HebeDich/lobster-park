@@ -84,6 +84,13 @@
   - 修改 `apps/server/src/modules/skills/skills.controller.ts` — 文件参数改为 any 类型
   - 修改 `apps/server/src/modules/skills/skill-storage.service.ts` — ZIP 解压从系统 unzip 改为 adm-zip 库
 
+## 2026-03-17 02:05
+
+- **发现什么问题**：上传不含 `skill.json` 的 ZIP 包（如只有 `skill.md`）时报 400 "ZIP 包中缺少 skill.json"
+- **使用了什么方式解决**：在 `skill-storage.service.ts` 中添加 `inferManifest` 回退方法，当 ZIP 包中没有 `skill.json` 时自动扫描 `.md` 文件推断 manifest：优先匹配 `skill.md` → `README.md` → 任意 `.md`，用文件名作为技能名称，默认版本 `1.0.0`，类型 `prompt`
+- **改了哪些文件**：
+  - 修改 `apps/server/src/modules/skills/skill-storage.service.ts` — 添加 inferManifest 回退逻辑，skill.json 变为可选
+
 ## 2026-03-17 02:00
 
 - **发现什么问题**：一键更新脚本每次构建版本号都是 `0.1.0`（来自 `package.json` 固定值），导致每次更新都覆盖同一目录，无法区分不同次更新和回滚
