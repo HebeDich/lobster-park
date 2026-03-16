@@ -55,3 +55,11 @@
 - **改了哪些文件**：
   - 修改 `apps/server/src/modules/skills/skills.service.ts` — 修复 Prisma 类型强转、修复 uploadSkillPackage 方法结构
   - 修改 `apps/server/src/modules/skills/skill-storage.service.ts` — saveZipPackage 改为 2 参数签名，内部自动从 manifest 读取版本
+
+## 2026-03-17 01:29
+
+- **发现什么问题**：编译仍报 2 个 TS 错误：① `openclaw-runtime-config.ts` 的 `prune()` 返回值不兼容 `AnyJsonValue`（因 `skills` 字段类型超出 JSON 范围）② `skills.controller.ts` 中 `Express.Multer.File` 类型缺失（未安装 `@types/multer`）
+- **使用了什么方式解决**：① `prune()` 参数末尾加 `as AnyJsonValue` 类型断言 ② 将 `Express.Multer.File` 替换为显式内联类型 `{ buffer: Buffer; originalname: string; size: number; mimetype: string }`
+- **改了哪些文件**：
+  - 修改 `apps/server/src/adapter/openclaw-runtime-config.ts` — prune 参数加 AnyJsonValue 断言
+  - 修改 `apps/server/src/modules/skills/skills.controller.ts` — 文件上传参数改为内联类型

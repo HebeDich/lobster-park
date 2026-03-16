@@ -437,5 +437,5 @@ export function toOpenClawRuntimeConfig(platformConfig: AnyJsonValue, options?: 
     ...(runtimeChannels ? { channels: runtimeChannels } : {}),
     ...(runtimeBindings ? { bindings: runtimeBindings } : {}),
     ...(options?.skillContents ? (() => { const sc = buildSkillsConfig(options.skillContents); return sc ? { skills: sc } : {}; })() : {}),
-  });
+  } as AnyJsonValue);
 }
