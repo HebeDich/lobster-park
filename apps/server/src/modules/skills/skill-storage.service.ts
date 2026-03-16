@@ -65,17 +65,14 @@ export class SkillStorageService {
       throw new BadRequestException(`ZIP 文件解压失败，请确认文件格式正确: ${err instanceof Error ? err.message : String(err)}`);
     }
 
-    const manifestPath = path.join(extractDir, 'skill.json');
-    let manifest: SkillManifest;
-    try {
-      const raw = await readFile(manifestPath, 'utf-8');
-      manifest = JSON.parse(raw) as SkillManifest;
-    } catch {
-      // 没有 skill.json，尝试从文件内容自动推断 manifest
-      manifest = await this.inferManifest(extractDir);
+    // 查找 manifest：先查找 skill.json（任意层级），再回退到自动推断
+    let manifest: SkillManifest | null = null;
+    manifest = await this.findAndParseManifest(extractDir);
+    if (!manifest) {
+      manifest = await this.inferManifestRecursive(extractDir);
     }
 
-    if (!manifest.name || !manifest.version) {
+    if (!manifest || !manifest.name || !manifest.version) {
       await rm(tempDir, { recursive: true, force: true });
       throw new BadRequestException('无法确定技能名称和版本。请在 ZIP 包中包含 skill.json，或至少包含一个 .md 文件');
     }
@@ -119,23 +116,43 @@ export class SkillStorageService {
     await rm(skillDir, { recursive: true, force: true });
   }
 
-  /** 从解压目录中自动推断 manifest（无 skill.json 时的回退逻辑） */
-  private async inferManifest(extractDir: string): Promise<SkillManifest> {
-    const files = await readdir(extractDir);
-    // 优先查找 skill.md / README.md / 任意 .md 文件作为入口
-    const mdFiles = files.filter((f: string) => f.endsWith('.md'));
-    const entry = mdFiles.find((f: string) => f === 'skill.md')
-      || mdFiles.find((f: string) => f.toLowerCase() === 'readme.md')
-      || mdFiles[0];
-
-    if (!entry) {
-      return { name: '', version: '' };
+  /** 递归查找并解析 skill.json（支持嵌套子目录） */
+  private async findAndParseManifest(dir: string): Promise<SkillManifest | null> {
+    const entries = await readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory() && entry.name === 'skill.json') {
+        try {
+          const raw = await readFile(path.join(dir, entry.name), 'utf-8');
+          const manifest = JSON.parse(raw) as SkillManifest;
+          if (manifest.name && manifest.version) return manifest;
+        } catch { /* 忽略解析失败 */ }
+      }
     }
+    // 递归子目录（最多 2 层）
+    for (const entry of entries) {
+      if (entry.isDirectory() && !entry.name.startsWith('.') && !entry.name.startsWith('_')) {
+        const found = await this.findAndParseManifest(path.join(dir, entry.name));
+        if (found) return found;
+      }
+    }
+    return null;
+  }
 
-    // 用入口文件名（去后缀）作为 skill 名称
-    const baseName = path.basename(entry, path.extname(entry));
+  /** 递归扫描 .md 文件推断 manifest（无 skill.json 时的回退逻辑） */
+  private async inferManifestRecursive(dir: string): Promise<SkillManifest | null> {
+    const allMdFiles: string[] = [];
+    await this.collectMdFiles(dir, dir, allMdFiles);
+
+    if (allMdFiles.length === 0) return null;
+
+    // 优先匹配特定文件名
+    const entry = allMdFiles.find((f: string) => path.basename(f) === 'skill.md')
+      || allMdFiles.find((f: string) => path.basename(f).toLowerCase() === 'readme.md')
+      || allMdFiles[0];
+
+    const baseName = path.basename(entry, '.md');
     const name = baseName === 'skill' || baseName.toLowerCase() === 'readme'
-      ? path.basename(extractDir) || 'unnamed-skill'
+      ? 'uploaded-skill'
       : baseName;
 
     return {
@@ -143,8 +160,21 @@ export class SkillStorageService {
       version: '1.0.0',
       type: 'prompt',
       entry,
-      promptFiles: mdFiles,
+      promptFiles: allMdFiles,
     };
+  }
+
+  /** 递归收集 .md 文件（相对路径） */
+  private async collectMdFiles(baseDir: string, currentDir: string, result: string[]): Promise<void> {
+    const entries = await readdir(currentDir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(currentDir, entry.name);
+      if (entry.isDirectory() && !entry.name.startsWith('.') && !entry.name.startsWith('_')) {
+        await this.collectMdFiles(baseDir, fullPath, result);
+      } else if (!entry.isDirectory() && entry.name.endsWith('.md')) {
+        result.push(path.relative(baseDir, fullPath));
+      }
+    }
   }
 
   /** 检查 Skill 存储路径是否存在 */
