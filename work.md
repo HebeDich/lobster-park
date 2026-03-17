@@ -355,3 +355,15 @@
   - 修改 `apps/server/prisma/seed.ts` — 新增 skl_browser_bridge 内置 Skill 种子数据
   - 修改 `scripts/build-linux-release.sh` — 将 packages/browser-bridge-cli 加入发布包打包
   - 修改 `openclaw-gateway-proxy.service.ts` — resolveBridgeCliPath 增加生产环境路径候选
+
+### 修复 Skill 不注入控制台会话的 BUG
+
+- **发现什么问题**：实例技能页面启用 Skill 后，控制台会话（对话）中 Skill 内容未注入到运行时配置。原因是 `prepareConsoleEnv` 调用 `toOpenClawRuntimeConfig` 时没有传入 `skillContents` 参数，而 `local-process-adapter` 和 `container-adapter` 的 `writeMaterializedConfig` 均正确传入了。
+- **使用了什么方式解决**：
+  1. `OpenClawModule` imports 增加 `SkillsModule`
+  2. `OpenClawGatewayProxyService` 构造函数注入 `SkillsService`
+  3. `prepareConsoleEnv` 中调用 `skillsService.getEnabledSkillContents(instanceId)` 获取已启用 Skill 内容
+  4. 将 `skillContents` 传入 `toOpenClawRuntimeConfig` 的 options
+- **改了哪些文件**：
+  - 修改 `apps/server/src/modules/openclaw/openclaw.module.ts` — imports 增加 SkillsModule
+  - 修改 `apps/server/src/modules/openclaw/openclaw-gateway-proxy.service.ts` — 注入 SkillsService、prepareConsoleEnv 传入 skillContents

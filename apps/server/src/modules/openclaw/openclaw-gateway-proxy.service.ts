@@ -10,6 +10,7 @@ import { buildRuntimePaths, decodeCipherValue, materializeSecrets, resolveAppTem
 import { OpenClawPluginRuntimeService } from '../../adapter/openclaw-plugin-runtime.service';
 import { toOpenClawRuntimeConfig } from '../../adapter/openclaw-runtime-config';
 import { BrowserBridgeService } from '../browser-bridge/browser-bridge.service';
+import { SkillsService } from '../skills/skills.service';
 import { buildContainerName, getContainerRuntimePaths } from '../../adapter/container-adapter.helpers';
 import { PrismaService } from '../../common/database/prisma.service';
 import { RuntimeAdapterService } from '../../adapter/runtime-adapter.service';
@@ -177,6 +178,7 @@ export class OpenClawGatewayProxyService {
     private readonly runtimeAdapter: RuntimeAdapterService,
     private readonly connectivityService: OpenClawConnectivityService,
     private readonly browserBridgeService: BrowserBridgeService,
+    private readonly skillsService: SkillsService,
     private readonly pluginRuntimeService: OpenClawPluginRuntimeService = new OpenClawPluginRuntimeService(),
   ) {}
 
@@ -221,9 +223,11 @@ export class OpenClawGatewayProxyService {
     await fs.mkdir(runtimePaths.workspacePath, { recursive: true });
 
     const pluginLoadPaths = await this.pluginRuntimeService.ensureRequiredPluginLoadPaths(materialized);
+    const skillContents = await this.skillsService.getEnabledSkillContents(instanceId);
     const runtimeConfig = toOpenClawRuntimeConfig(materialized, {
       workspaceDir: runtimePaths.workspacePath,
       pluginLoadPaths,
+      skillContents,
     }) as Record<string, unknown>;
     const runtimeTarget = transient
       ? {

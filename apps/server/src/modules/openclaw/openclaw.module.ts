@@ -5,6 +5,7 @@ import { ConfigCenterModule } from '../config/config-center.module';
 import { InstanceModule } from '../instance/instance.module';
 import { NodeCenterModule } from '../node/node.module';
 import { PlatformModule } from '../platform/platform.module';
+import { SkillsModule } from '../skills/skills.module';
 import { OpenClawBasicConfigService } from './openclaw-basic-config.service';
 import { OpenClawChannelService } from './openclaw-channel.service';
 import { OpenClawConnectivityService } from './openclaw-connectivity.service';
@@ -19,7 +20,7 @@ import { OpenClawWebUIProxyController } from './openclaw-webui-proxy.controller'
 import { OpenClawWorkspaceExportService } from './openclaw-workspace-export.service';
 
 @Module({
-  imports: [AuditModule, BrowserBridgeModule, ConfigCenterModule, NodeCenterModule, PlatformModule, forwardRef(() => InstanceModule)],
+  imports: [AuditModule, BrowserBridgeModule, ConfigCenterModule, NodeCenterModule, PlatformModule, SkillsModule, forwardRef(() => InstanceModule)],
   controllers: [OpenClawController, OpenClawWebUIProxyController, OpenClawSetupWizardController],
   providers: [OpenClawBasicConfigService, OpenClawChannelService, OpenClawConnectivityService, OpenClawGatewayProxyService, OpenClawNativePairingService, OpenClawSetupWizardService, OpenClawTerminalService, OpenClawTerminalRealtimeService, OpenClawWorkspaceExportService],
   exports: [OpenClawBasicConfigService, OpenClawChannelService, OpenClawConnectivityService, OpenClawGatewayProxyService, OpenClawNativePairingService, OpenClawSetupWizardService, OpenClawTerminalService, OpenClawTerminalRealtimeService, OpenClawWorkspaceExportService],
