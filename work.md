@@ -104,3 +104,50 @@
 - **使用了什么方式解决**：改用项目自带的 `./apps/server/node_modules/.bin/prisma` 和 `./apps/server/node_modules/.bin/tsx`，与 `install-service.sh` 中 `run_database_setup()` 保持一致
 - **改了哪些文件**：
   - 修改 `scripts/update-ubuntu.sh` — 数据库迁移和种子数据改用项目自带 CLI
+
+## 2026-03-17 10:28
+
+- **发现什么问题**：系统设置与登录管理虽已接通后端公开配置接口，但前端后台仍停留在原始 JSON 编辑模式，且后台布局顶部标题还未动态读取站点品牌，导致管理员使用成本高、用户端品牌更新不完整
+- **使用了什么方式解决**：补齐后台布局对公开站点标题的动态读取；将平台设置页升级为结构化表单，分别管理站点品牌、邮箱登录、LinuxDo 登录，并保留其他配置项的高级 JSON 编辑入口；保存后同步刷新平台设置缓存与公开站点配置缓存
+- **改了哪些文件**：
+  - 修改 `apps/web/src/layouts/AppLayout.tsx` — 顶部面包屑改为动态站点标题
+  - 修改 `apps/web/src/pages/platform/PlatformSettingsPage.tsx` — 平台设置页改为结构化配置表单并保留高级编辑入口
+  - 修改 `work.md` — 记录本轮系统设置与登录管理前端收口
+
+## 2026-03-17 10:35
+
+- **发现什么问题**：系统缺少用户注册流程与邮箱验证机制，用户无法自助注册，也无法通过邮箱验证激活账号
+- **使用了什么方式解决**：方案 C — 注册 + 邮箱验证一起上。具体实施：
+  1. Prisma 新增 `EmailVerificationToken` 模型并创建迁移 SQL
+  2. `NotificationModule` 导出 `EmailNotificationAdapter`，`AuthModule` 导入 `NotificationModule`
+  3. `AuthService` 新增 `registerWithEmail`（含邮箱/密码/昵称校验、默认租户归属、根据配置决定是否要求验证）、`sendVerificationEmail`（生成 token 并调用邮件适配器发信）、`verifyEmailToken`（验证 token 并激活用户）
+  4. `loginWithPassword` 增加 `pending_verification` 状态拦截，提示用户先验证邮箱
+  5. `AuthController` 新增 `POST /auth/register` 和 `GET /auth/verify-email`（验证成功重定向到登录页带 `?verified=true`）
+  6. 前端新增 `RegisterPage.tsx`（注册表单 + 注册未开放兜底 + 注册成功提示）
+  7. 前端新增 `VerifyEmailPage.tsx`（从 URL 读取 token 调用验证接口）
+  8. 路由新增 `/register` 和 `/verify-email` 公开路由
+  9. `LoginPage.tsx` 增加注册入口链接（根据 `allowRegistration`）和邮箱验证结果提示
+- **改了哪些文件**：
+  - 新增 `apps/server/prisma/migrations/20260317102800_email_verification_token/migration.sql`
+  - 修改 `apps/server/prisma/schema.prisma` — 新增 EmailVerificationToken 模型
+  - 修改 `apps/server/src/modules/notification/notification.module.ts` — 导出 EmailNotificationAdapter
+  - 修改 `apps/server/src/modules/auth/auth.module.ts` — 导入 NotificationModule
+  - 修改 `apps/server/src/modules/auth/auth.service.ts` — 注入 EmailNotificationAdapter，新增注册/验证/发信方法，登录增加验证状态拦截
+  - 修改 `apps/server/src/modules/auth/auth.controller.ts` — 新增注册和验证接口
+  - 新增 `apps/web/src/pages/RegisterPage.tsx`
+  - 新增 `apps/web/src/pages/VerifyEmailPage.tsx`
+  - 修改 `apps/web/src/router/index.tsx` — 新增公开路由
+  - 修改 `apps/web/src/pages/LoginPage.tsx` — 注册入口 + 验证结果提示
+  - 修改 `work.md`
+
+## 2026-03-17 10:42
+
+- **发现什么问题**：LinuxDo 登录链路存在多项健壮性缺陷：回调失败时抛裸异常导致用户看到 JSON 错误页；已禁用用户仍可通过 OIDC 登录；LinuxDo 未返回 email 时直接报错；已有用户的 displayName 每次被覆盖；前端无 auth_error 提示
+- **使用了什么方式解决**：
+  1. 改造 `ensureUserFromOidc`：缺少 email 时用 username 构造占位邮箱；已禁用用户阻止登录；已有用户不覆盖 displayName，仅更新 lastLoginAt；新建用户记录 lastLoginAt
+  2. `callbackLinuxDo` 全链路 try/catch 兜底，所有错误路径改为重定向到 `/login?auth_error=xxx`
+  3. `LoginPage` 增加 auth_error 参数读取和中文错误提示映射（6 种错误码）
+- **改了哪些文件**：
+  - 修改 `apps/server/src/modules/auth/auth.service.ts` — ensureUserFromOidc 改造 + callbackLinuxDo 错误兜底
+  - 修改 `apps/web/src/pages/LoginPage.tsx` — auth_error 提示
+  - 修改 `work.md`

@@ -2,6 +2,7 @@ import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
 import { Button, Typography } from 'antd';
 import compactLogo from '@/assets/lobster-park-icon-display.png';
 import brandLogo from '@/assets/lobster-park-logo-display.png';
+import { useSiteConfigStore } from '@/stores/site-config-store';
 
 type BrandLogoProps = {
   collapsed: boolean;
@@ -14,7 +15,13 @@ export function BrandLogo({
   onToggle,
   slogan = '企业级 OpenClaw 控制平面',
 }: BrandLogoProps) {
+  const siteSettings = useSiteConfigStore((state) => state.siteSettings);
   const ariaLabel = collapsed ? '展开侧边栏' : '收起侧边栏';
+  const resolvedSlogan = siteSettings.subtitle || slogan;
+  const resolvedLogo = siteSettings.logoUrl || brandLogo;
+  const resolvedCompactLogo = siteSettings.logoUrl || compactLogo;
+  const resolvedTitle = siteSettings.title || '龙虾乐园';
+  const resolvedTitleEn = siteSettings.titleEn || 'LOBSTER PARK';
 
   return (
     <div
@@ -50,8 +57,8 @@ export function BrandLogo({
         >
           {collapsed ? (
             <img
-              src={compactLogo}
-              alt='龙虾乐园 Lobster Park'
+              src={resolvedCompactLogo}
+              alt={`${resolvedTitle} ${resolvedTitleEn}`}
               style={{
                 display: 'block',
                 width: 44,
@@ -70,8 +77,8 @@ export function BrandLogo({
               }}
             >
               <img
-                src={brandLogo}
-                alt='龙虾乐园 Lobster Park'
+                src={resolvedLogo}
+                alt={`${resolvedTitle} ${resolvedTitleEn}`}
                 style={{
                   display: 'block',
                   width: 52,
@@ -90,7 +97,7 @@ export function BrandLogo({
                     color: 'rgba(15, 23, 42, 0.96)',
                   }}
                 >
-                  龙虾乐园
+                  {resolvedTitle}
                 </Typography.Text>
                 <Typography.Text
                   style={{
@@ -100,7 +107,7 @@ export function BrandLogo({
                     color: 'rgba(15, 23, 42, 0.78)',
                   }}
                 >
-                  LOBSTER PARK
+                  {resolvedTitleEn}
                 </Typography.Text>
               </div>
             </div>
@@ -126,7 +133,7 @@ export function BrandLogo({
             lineHeight: '20px',
           }}
         >
-          {slogan}
+          {resolvedSlogan}
         </Typography.Text>
       ) : null}
     </div>

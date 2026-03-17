@@ -32,6 +32,39 @@ export class AuthController {
     return this.authService.callback(response, String(code ?? ''), String(state ?? ''));
   }
 
+  @Get('auth/linuxdo/authorize')
+  @SkipEnvelope()
+  authorizeLinuxDo(@Res() response: Response, @Query('redirect_uri') redirectUri?: string) {
+    return this.authService.authorizeLinuxDo(response, redirectUri);
+  }
+
+  @Get('auth/linuxdo/callback')
+  @SkipEnvelope()
+  callbackLinuxDo(@Res() response: Response, @Query('code') code?: string, @Query('state') state?: string) {
+    return this.authService.callbackLinuxDo(response, String(code ?? ''), String(state ?? ''));
+  }
+
+  @Post('auth/register')
+  @HttpCode(200)
+  register(@Body() body: Record<string, unknown>) {
+    return this.authService.registerWithEmail(
+      String(body.email ?? ''),
+      String(body.password ?? ''),
+      String(body.displayName ?? ''),
+    );
+  }
+
+  @Get('auth/verify-email')
+  @SkipEnvelope()
+  async verifyEmail(@Res() response: Response, @Query('token') token?: string) {
+    try {
+      await this.authService.verifyEmailToken(String(token ?? ''));
+      response.redirect(302, '/login?verified=true');
+    } catch {
+      response.redirect(302, '/login?verify_error=invalid_or_expired');
+    }
+  }
+
   @Post('auth/refresh')
   @HttpCode(200)
   refresh(@Req() request: Request, @Res({ passthrough: true }) response: Response) {

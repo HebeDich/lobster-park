@@ -9,6 +9,6 @@ import { NotificationService } from './notification.service';
   imports: [AuditModule],
   controllers: [NotificationController],
   providers: [NotificationService, EmailNotificationAdapter, NotificationDispatcherService],
-  exports: [NotificationService]
+  exports: [NotificationService, EmailNotificationAdapter]
 })
 export class NotificationModule {}

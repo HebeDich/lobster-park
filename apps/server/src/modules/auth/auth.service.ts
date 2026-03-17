@@ -6,6 +6,8 @@ import { PERMISSIONS } from '@lobster-park/shared';
 import { PrismaService } from '../../common/database/prisma.service';
 import { WsTicketService } from '../../common/realtime/ws-ticket.service';
 import type { RequestUserContext } from '../../common/auth/access-control';
+import { PlatformService } from '../platform/platform.service';
+import { EmailNotificationAdapter } from '../notification/email-notification.adapter';
 
 const NORMAL_USER_PERMISSIONS = [
   PERMISSIONS.instanceView, PERMISSIONS.instanceCreate, PERMISSIONS.instanceUpdate, PERMISSIONS.instanceStart,
@@ -34,8 +36,14 @@ type OidcDiscovery = {
 @Injectable()
 export class AuthService {
   private oidcDiscovery?: OidcDiscovery;
+  private linuxDoDiscovery?: OidcDiscovery;
 
-  constructor(private readonly prisma: PrismaService, private readonly wsTicketService: WsTicketService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly wsTicketService: WsTicketService,
+    private readonly platformService: PlatformService,
+    private readonly emailAdapter: EmailNotificationAdapter,
+  ) {}
 
   private get authConfig() {
     return {
@@ -73,6 +81,15 @@ export class AuthService {
   private isOidcConfigured() {
     return this.authConfig.compatibilitySsoEnabled === 'true'
       && Boolean(this.authConfig.issuerUrl && this.authConfig.clientId && this.authConfig.redirectUri);
+  }
+
+  private async getLinuxDoConfig() {
+    return this.platformService.getLinuxDoAuthSettings();
+  }
+
+  private async isLinuxDoConfigured() {
+    const config = await this.getLinuxDoConfig();
+    return Boolean(config.enabled && config.issuerUrl && config.clientId && config.redirectUri);
   }
 
   private parseCookies(request: Request) {
@@ -174,6 +191,19 @@ export class AuthService {
     return discovery;
   }
 
+  private async discoverLinuxDoOidc() {
+    if (this.linuxDoDiscovery) return this.linuxDoDiscovery;
+    const config = await this.getLinuxDoConfig();
+    const issuer = config.issuerUrl.replace(/\/$/, '');
+    const response = await fetch(`${issuer}/.well-known/openid-configuration`);
+    if (!response.ok) {
+      throw new BadRequestException('failed to discover linuxdo oidc configuration');
+    }
+    const discovery = await response.json() as OidcDiscovery;
+    this.linuxDoDiscovery = discovery;
+    return discovery;
+  }
+
   private async getDefaultTenantId() {
     const configured = await this.prisma.platformSetting.findUnique({ where: { settingKey: 'default_tenant_id' } });
     if (typeof configured?.settingValueJson === 'string' && configured.settingValueJson) return configured.settingValueJson;
@@ -183,13 +213,29 @@ export class AuthService {
   }
 
   private async ensureUserFromOidc(claims: Record<string, unknown>) {
-    const email = String(claims.email ?? '').trim();
-    if (!email) throw new BadRequestException('oidc userinfo missing email');
-    const displayName = String(claims.name ?? claims.preferred_username ?? email);
+    const rawEmail = String(claims.email ?? '').trim().toLowerCase();
+    const username = String(claims.preferred_username ?? claims.name ?? '').trim();
+    const displayName = String(claims.name ?? username ?? rawEmail);
+
+    // LinuxDo 等 OIDC 提供者可能不返回 email，用 username 构造占位邮箱
+    const email = rawEmail || (username ? `${username}@linuxdo.local` : '');
+    if (!email) {
+      throw new BadRequestException('OIDC 未返回邮箱或用户名，无法创建账号');
+    }
+
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) {
-      return this.prisma.user.update({ where: { id: existing.id }, data: { displayName } });
+      // 已禁用用户不允许通过 OIDC 登录
+      if (existing.status !== 'active') {
+        throw new ForbiddenException('账号已被禁用，请联系管理员');
+      }
+      // 仅更新登录时间，不覆盖用户手动修改的 displayName
+      return this.prisma.user.update({
+        where: { id: existing.id },
+        data: { lastLoginAt: new Date() },
+      });
     }
+
     const tenantId = await this.getDefaultTenantId();
     return this.prisma.user.create({
       data: {
@@ -197,7 +243,9 @@ export class AuthService {
         tenantId,
         email,
         displayName,
+        status: 'active',
         roleCodes: ['employee'],
+        lastLoginAt: new Date(),
       },
     });
   }
@@ -307,9 +355,16 @@ export class AuthService {
   }
 
   async loginWithPassword(response: Response, email: string, password: string) {
+    const emailSettings = await this.platformService.getEmailAuthSettings();
+    if (!emailSettings.enabled) {
+      throw new UnauthorizedException('邮箱登录未启用');
+    }
     const user = await this.prisma.user.findUnique({ where: { email: String(email).trim() } });
     const activeUser = this.ensureActiveUser(user);
     if (user && !activeUser) {
+      if (user.status === 'pending_verification') {
+        throw new UnauthorizedException('邮箱尚未验证，请查收验证邮件后再登录');
+      }
       throw new UnauthorizedException('账号已被禁用，请联系管理员');
     }
     if (!activeUser || !(await this.verifyPassword(activeUser.passwordHash ?? null, password))) {
@@ -438,6 +493,99 @@ export class AuthService {
     response.redirect(302, this.frontendRedirectUrl(stateRecord.redirectUri || '/workbench'));
   }
 
+  async authorizeLinuxDo(response: Response, redirectUri?: string) {
+    const safeRedirect = this.safeRedirect(redirectUri);
+    const config = await this.getLinuxDoConfig();
+    if (!(await this.isLinuxDoConfigured())) {
+      response.redirect(302, this.frontendRedirectUrl(`/login?auth_error=linuxdo_unavailable&redirect_uri=${encodeURIComponent(safeRedirect)}`));
+      return;
+    }
+    const discovery = await this.discoverLinuxDoOidc();
+    const state = this.randomToken(24);
+    const nonce = this.randomToken(24);
+    const codeVerifier = this.randomToken(48);
+    const codeChallenge = this.toBase64Url(createHash('sha256').update(codeVerifier).digest());
+    await this.prisma.oidcStateRecord.create({
+      data: {
+        id: `oidc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        state,
+        nonce,
+        codeVerifier,
+        redirectUri: safeRedirect,
+        expiresAt: new Date(Date.now() + this.authConfig.oidcStateTtlSeconds * 1000),
+      },
+    });
+    const authorizeUrl = new URL(discovery.authorization_endpoint);
+    authorizeUrl.searchParams.set('client_id', config.clientId);
+    authorizeUrl.searchParams.set('redirect_uri', config.redirectUri);
+    authorizeUrl.searchParams.set('response_type', 'code');
+    authorizeUrl.searchParams.set('scope', config.scopes || 'openid profile email');
+    authorizeUrl.searchParams.set('state', state);
+    authorizeUrl.searchParams.set('nonce', nonce);
+    authorizeUrl.searchParams.set('code_challenge', codeChallenge);
+    authorizeUrl.searchParams.set('code_challenge_method', 'S256');
+    response.redirect(302, authorizeUrl.toString());
+  }
+
+  async callbackLinuxDo(response: Response, code: string, state: string) {
+    const config = await this.getLinuxDoConfig();
+    if (!(await this.isLinuxDoConfigured())) {
+      response.redirect(302, this.frontendRedirectUrl('/login?auth_error=linuxdo_unavailable'));
+      return;
+    }
+
+    let redirectUri = '/workbench';
+    try {
+      const stateRecord = await this.prisma.oidcStateRecord.findUnique({ where: { state } });
+      if (!stateRecord || stateRecord.expiresAt.getTime() < Date.now()) {
+        response.redirect(302, this.frontendRedirectUrl('/login?auth_error=state_expired'));
+        return;
+      }
+      redirectUri = stateRecord.redirectUri || '/workbench';
+
+      const discovery = await this.discoverLinuxDoOidc();
+      const body = new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: config.redirectUri,
+        client_id: config.clientId,
+        code_verifier: stateRecord.codeVerifier,
+      });
+      if (config.clientSecret) {
+        body.set('client_secret', config.clientSecret);
+      }
+      const tokenResponse = await fetch(discovery.token_endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body,
+      });
+      if (!tokenResponse.ok) {
+        response.redirect(302, this.frontendRedirectUrl('/login?auth_error=token_exchange_failed'));
+        return;
+      }
+      const tokenJson = await tokenResponse.json() as Record<string, unknown>;
+      let claims: Record<string, unknown> = {};
+      const accessToken = typeof tokenJson.access_token === 'string' ? tokenJson.access_token : '';
+      if (discovery.userinfo_endpoint && accessToken) {
+        const userInfoResponse = await fetch(discovery.userinfo_endpoint, { headers: { Authorization: `Bearer ${accessToken}` } });
+        if (userInfoResponse.ok) {
+          claims = await userInfoResponse.json() as Record<string, unknown>;
+        }
+      }
+      if (!claims.email && !claims.preferred_username && typeof tokenJson.id_token === 'string') {
+        claims = this.decodeJwtPayload(tokenJson.id_token);
+      }
+      const user = await this.ensureUserFromOidc(claims);
+      await this.issueSessionPair(response, user);
+      await this.prisma.oidcStateRecord.delete({ where: { state } }).catch(() => {});
+      response.redirect(302, this.frontendRedirectUrl(redirectUri));
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'unknown_error';
+      const errorCode = message.includes('禁用') ? 'account_disabled' : 'linuxdo_login_failed';
+      response.redirect(302, this.frontendRedirectUrl(`/login?auth_error=${errorCode}`));
+    }
+  }
+
   async refresh(request: Request, response: Response) {
     const cookies = this.parseCookies(request);
     const refreshToken = cookies[this.authConfig.refreshCookieName];
@@ -464,5 +612,109 @@ export class AuthService {
 
   issueWsTicket(currentUser: RequestUserContext) {
     return this.wsTicketService.issue(currentUser);
+  }
+
+  async registerWithEmail(email: string, password: string, displayName: string) {
+    const emailSettings = await this.platformService.getEmailAuthSettings();
+    if (!emailSettings.enabled) {
+      throw new BadRequestException('邮箱登录未启用');
+    }
+    if (!emailSettings.allowRegistration) {
+      throw new BadRequestException('当前不允许新用户注册');
+    }
+
+    const trimmedEmail = String(email).trim().toLowerCase();
+    const trimmedName = String(displayName).trim() || trimmedEmail;
+    if (!trimmedEmail || !trimmedEmail.includes('@')) {
+      throw new BadRequestException('请输入有效的邮箱地址');
+    }
+    this.assertPasswordLength(password);
+
+    const existing = await this.prisma.user.findUnique({ where: { email: trimmedEmail } });
+    if (existing) {
+      throw new BadRequestException('该邮箱已被注册');
+    }
+
+    const tenantId = await this.getDefaultTenantId();
+    const passwordHash = await this.hashPassword(password);
+    const requireVerification = emailSettings.requireEmailVerification;
+    const userStatus = requireVerification ? 'pending_verification' : 'active';
+
+    const user = await this.prisma.user.create({
+      data: {
+        id: `usr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        tenantId,
+        email: trimmedEmail,
+        displayName: trimmedName,
+        passwordHash,
+        status: userStatus,
+        roleCodes: ['employee'],
+      },
+    });
+
+    if (requireVerification) {
+      await this.sendVerificationEmail(user.id, trimmedEmail);
+    }
+
+    return {
+      registered: true,
+      requiresVerification: requireVerification,
+    };
+  }
+
+  async sendVerificationEmail(userId: string, email: string) {
+    const token = this.randomToken(32);
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await this.prisma.emailVerificationToken.create({
+      data: {
+        id: `evt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        userId,
+        token,
+        expiresAt,
+      },
+    });
+
+    const origin = process.env.WEB_APP_ORIGIN || process.env.VITE_APP_ORIGIN || 'http://127.0.0.1:4173';
+    const verifyUrl = `${origin}/verify-email?token=${encodeURIComponent(token)}`;
+
+    const siteBranding = await this.platformService.getSiteBranding();
+    const siteName = siteBranding.title || '龙虾乐园';
+
+    await this.emailAdapter.send({
+      to: email,
+      subject: `【${siteName}】请验证您的邮箱`,
+      body: `您好，\n\n感谢您注册 ${siteName}。\n\n请点击以下链接验证您的邮箱地址：\n${verifyUrl}\n\n该链接 24 小时内有效。\n\n如果您没有注册过，请忽略此邮件。`,
+    });
+  }
+
+  async verifyEmailToken(token: string) {
+    if (!token) {
+      throw new BadRequestException('缺少验证 token');
+    }
+
+    const record = await this.prisma.emailVerificationToken.findUnique({ where: { token } });
+    if (!record) {
+      throw new BadRequestException('无效的验证链接');
+    }
+    if (record.usedAt) {
+      throw new BadRequestException('该验证链接已被使用');
+    }
+    if (record.expiresAt.getTime() < Date.now()) {
+      throw new BadRequestException('验证链接已过期，请重新注册');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: record.userId },
+        data: { status: 'active' },
+      }),
+      this.prisma.emailVerificationToken.update({
+        where: { id: record.id },
+        data: { usedAt: new Date() },
+      }),
+    ]);
+
+    return { verified: true };
   }
 }

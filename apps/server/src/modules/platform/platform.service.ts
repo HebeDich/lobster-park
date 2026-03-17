@@ -5,6 +5,68 @@ import type { AnyJsonValue } from '@lobster-park/shared';
 import { PrismaService } from '../../common/database/prisma.service';
 import { toPrismaJson } from '../../common/database/json.util';
 
+type SiteBranding = {
+  title: string;
+  titleEn: string;
+  subtitle: string;
+  description: string;
+  logoUrl: string;
+  faviconUrl: string;
+  footerText: string;
+};
+
+type EmailAuthSettings = {
+  enabled: boolean;
+  allowRegistration: boolean;
+  requireEmailVerification: boolean;
+  smtpHost: string;
+  smtpPort: number;
+  smtpSecure: boolean;
+  smtpUser: string;
+  smtpPassword: string;
+  smtpFrom: string;
+};
+
+type LinuxDoAuthSettings = {
+  enabled: boolean;
+  issuerUrl: string;
+  clientId: string;
+  clientSecret: string;
+  redirectUri: string;
+  scopes: string;
+};
+
+const DEFAULT_SITE_BRANDING: SiteBranding = {
+  title: '龙虾乐园',
+  titleEn: 'LOBSTER PARK',
+  subtitle: '企业级 OpenClaw 控制平面',
+  description: '集中管理实例、配置、节点与技能的 OpenClaw 平台',
+  logoUrl: '',
+  faviconUrl: '',
+  footerText: '',
+};
+
+const DEFAULT_EMAIL_AUTH: EmailAuthSettings = {
+  enabled: true,
+  allowRegistration: false,
+  requireEmailVerification: false,
+  smtpHost: '',
+  smtpPort: 587,
+  smtpSecure: false,
+  smtpUser: '',
+  smtpPassword: '',
+  smtpFrom: '',
+};
+
+const DEFAULT_LINUXDO_AUTH: LinuxDoAuthSettings = {
+  enabled: false,
+  issuerUrl: 'https://connect.linux.do',
+  clientId: '',
+  clientSecret: '',
+  redirectUri: '',
+  scopes: 'openid profile email',
+};
+
 function extract(content: string, label: string) {
   const prefix = `- ${label}: \``;
   const line = content.split('\n').find((item) => item.startsWith(prefix));
@@ -33,9 +95,36 @@ function parseAcceptanceReport(filePath: string) {
   };
 }
 
+function asRecord(value: unknown) {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function readString(value: unknown, fallback = '') {
+  return typeof value === 'string' ? value : fallback;
+}
+
+function readBoolean(value: unknown, fallback = false) {
+  return typeof value === 'boolean' ? value : fallback;
+}
+
+function readNumber(value: unknown, fallback = 0) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
 @Injectable()
 export class PlatformService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private async getSettingRecord(settingKey: string) {
+    return this.prisma.platformSetting.findUnique({ where: { settingKey } });
+  }
+
+  private async getSettingObject(settingKey: string) {
+    const record = await this.getSettingRecord(settingKey);
+    return asRecord(record?.settingValueJson);
+  }
 
   async listSettings(pageNo = 1, pageSize = 50) {
     const [total, items] = await Promise.all([
@@ -64,6 +153,69 @@ export class PlatformService {
         updatedBy: 'usr_admin'
       }
     });
+  }
+
+  async getSiteBranding() {
+    const value = await this.getSettingObject('site_branding');
+    return {
+      title: readString(value.title, DEFAULT_SITE_BRANDING.title),
+      titleEn: readString(value.titleEn, DEFAULT_SITE_BRANDING.titleEn),
+      subtitle: readString(value.subtitle, DEFAULT_SITE_BRANDING.subtitle),
+      description: readString(value.description, DEFAULT_SITE_BRANDING.description),
+      logoUrl: readString(value.logoUrl, DEFAULT_SITE_BRANDING.logoUrl),
+      faviconUrl: readString(value.faviconUrl, DEFAULT_SITE_BRANDING.faviconUrl),
+      footerText: readString(value.footerText, DEFAULT_SITE_BRANDING.footerText),
+    } satisfies SiteBranding;
+  }
+
+  async getEmailAuthSettings() {
+    const value = await this.getSettingObject('auth_email');
+    return {
+      enabled: readBoolean(value.enabled, DEFAULT_EMAIL_AUTH.enabled),
+      allowRegistration: readBoolean(value.allowRegistration, DEFAULT_EMAIL_AUTH.allowRegistration),
+      requireEmailVerification: readBoolean(value.requireEmailVerification, DEFAULT_EMAIL_AUTH.requireEmailVerification),
+      smtpHost: readString(value.smtpHost, DEFAULT_EMAIL_AUTH.smtpHost),
+      smtpPort: readNumber(value.smtpPort, DEFAULT_EMAIL_AUTH.smtpPort),
+      smtpSecure: readBoolean(value.smtpSecure, DEFAULT_EMAIL_AUTH.smtpSecure),
+      smtpUser: readString(value.smtpUser, DEFAULT_EMAIL_AUTH.smtpUser),
+      smtpPassword: readString(value.smtpPassword, DEFAULT_EMAIL_AUTH.smtpPassword),
+      smtpFrom: readString(value.smtpFrom, DEFAULT_EMAIL_AUTH.smtpFrom),
+    } satisfies EmailAuthSettings;
+  }
+
+  async getLinuxDoAuthSettings() {
+    const value = await this.getSettingObject('auth_linuxdo');
+    return {
+      enabled: readBoolean(value.enabled, DEFAULT_LINUXDO_AUTH.enabled),
+      issuerUrl: readString(value.issuerUrl, DEFAULT_LINUXDO_AUTH.issuerUrl),
+      clientId: readString(value.clientId, DEFAULT_LINUXDO_AUTH.clientId),
+      clientSecret: readString(value.clientSecret, DEFAULT_LINUXDO_AUTH.clientSecret),
+      redirectUri: readString(value.redirectUri, DEFAULT_LINUXDO_AUTH.redirectUri),
+      scopes: readString(value.scopes, DEFAULT_LINUXDO_AUTH.scopes),
+    } satisfies LinuxDoAuthSettings;
+  }
+
+  async getPublicSiteSettings() {
+    return this.getSiteBranding();
+  }
+
+  async getPublicAuthOptions() {
+    const [email, linuxdo] = await Promise.all([
+      this.getEmailAuthSettings(),
+      this.getLinuxDoAuthSettings(),
+    ]);
+
+    return {
+      email: {
+        enabled: email.enabled,
+        allowRegistration: email.allowRegistration,
+        requireEmailVerification: email.requireEmailVerification,
+      },
+      linuxdo: {
+        enabled: linuxdo.enabled && Boolean(linuxdo.issuerUrl && linuxdo.clientId && linuxdo.redirectUri),
+        authorizeUrl: '/api/v1/auth/linuxdo/authorize',
+      },
+    };
   }
 
   getRuntimeSchema(runtimeVersion: string) {
@@ -97,24 +249,24 @@ export class PlatformService {
     const indexPath = path.join(reportDir, 'openclaw-live-acceptance-index.md');
     const items = existsSync(reportDir)
       ? readdirSync(reportDir)
-          .filter((file) => file.endsWith('-live-acceptance-report.md'))
+          .filter((file: string) => file.endsWith('-live-acceptance-report.md'))
           .sort()
-          .map((file) => parseAcceptanceReport(path.join(reportDir, file)))
+          .map((file: string) => parseAcceptanceReport(path.join(reportDir, file)))
       : [];
     const summary = {
       total: items.length,
-      success: items.filter((item) => item.status === 'success').length,
-      failed: items.filter((item) => item.status === 'failed').length,
-      pending: items.filter((item) => item.status === 'pending').length,
+      success: items.filter((item: ReturnType<typeof parseAcceptanceReport>) => item.status === 'success').length,
+      failed: items.filter((item: ReturnType<typeof parseAcceptanceReport>) => item.status === 'failed').length,
+      pending: items.filter((item: ReturnType<typeof parseAcceptanceReport>) => item.status === 'pending').length,
     };
     const generatedAt = existsSync(indexPath)
-      ? (readFileSync(indexPath, 'utf8').split('\n').find((line) => line.startsWith('Generated At: '))?.replace('Generated At: `', '').replace(/`$/, '') ?? '')
+      ? (readFileSync(indexPath, 'utf8').split('\n').find((line: string) => line.startsWith('Generated At: '))?.replace('Generated At: `', '').replace(/`$/, '') ?? '')
       : '';
     return {
       indexPath,
       generatedAt,
       summary,
-      items: items.map(({ content, ...item }) => item),
+      items: items.map(({ content, ...item }: ReturnType<typeof parseAcceptanceReport>) => item),
     };
   }
 

@@ -4,6 +4,7 @@ import { AppRouter } from '@/router/index';
 import { DefaultService } from '@/api';
 import { useAuthStore } from '@/stores/auth-store';
 import { ApiError } from '@/api/generated/core/ApiError';
+import { useSiteConfigStore } from '@/stores/site-config-store';
 
 function isAuthoritativeUnauthenticatedError(cause: unknown) {
   return cause instanceof ApiError && (cause.status === 401 || cause.status === 403);
@@ -12,11 +13,13 @@ function isAuthoritativeUnauthenticatedError(cause: unknown) {
 export default function App() {
   const hydrateFromApi = useAuthStore((state) => state.hydrateFromApi);
   const setLoading = useAuthStore((state) => state.setLoading);
+  const loadPublicConfig = useSiteConfigStore((state) => state.loadPublicConfig);
 
   useEffect(() => {
     const run = async () => {
       setLoading(true);
       try {
+        await loadPublicConfig();
         const response = await DefaultService.getCurrentUser();
         if (response.data) {
           hydrateFromApi({
@@ -41,7 +44,7 @@ export default function App() {
     };
 
     void run();
-  }, [hydrateFromApi, setLoading]);
+  }, [hydrateFromApi, loadPublicConfig, setLoading]);
 
   return (
     <BrowserRouter>

@@ -340,3 +340,12 @@ model InstanceSkillBinding {
 
   @@unique([instanceId, skillId])
 }
+
+model EmailVerificationToken {
+  id        String    @id
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+}

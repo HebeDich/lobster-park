@@ -21,6 +21,7 @@ import { DefaultService } from '@/api';
 import { useCallback, useMemo } from 'react';
 import { BrandLogo } from '@/components/BrandLogo';
 import { useAuthStore } from '@/stores/auth-store';
+import { useSiteConfigStore } from '@/stores/site-config-store';
 import { useUiStore } from '@/stores/ui-store';
 import { prefetchRouteData } from '@/utils/app-data';
 import { appRoutes, prefetchRouteComponent, type AppRoute } from '@/router/route-config';
@@ -67,13 +68,14 @@ function toMenuItems(routes: AppRoute[], onPrefetch: (routePath: string) => void
 }
 
 function resolveCurrentTitle(routes: AppRoute[], pathname: string) {
-  return routes.find((route) => matchPath({ path: route.path, end: false }, pathname))?.title ?? 'Lobster Park';
+  return routes.find((route) => matchPath({ path: route.path, end: false }, pathname))?.title ?? '龙虾乐园';
 }
 
 export function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const currentUser = useAuthStore((state) => state.currentUser);
+  const siteSettings = useSiteConfigStore((state) => state.siteSettings);
   const logout = useAuthStore((state) => state.logout);
   const siderCollapsed = useUiStore((state) => state.siderCollapsed);
   const toggleSider = useUiStore((state) => state.toggleSider);
@@ -131,7 +133,7 @@ export function AppLayout() {
           }}
         >
           <Space>
-            <Breadcrumb items={[{ title: 'Lobster Park' }, { title: currentTitle }]} />
+            <Breadcrumb items={[{ title: siteSettings.title || '龙虾乐园' }, { title: currentTitle }]} />
           </Space>
           <Dropdown menu={{ items: userMenuItems }}>
             <Space style={{ cursor: 'pointer' }}>
