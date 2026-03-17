@@ -376,6 +376,7 @@ export type SkillContentItem = {
   id: string;
   content: unknown;
   storagePath: string | null;
+  metadata?: unknown;
 };
 
 /**
@@ -386,8 +387,10 @@ export function buildManagedSkillMarkdown(item: SkillContentItem): { skillKey: s
   const content = isRecord(item.content) ? item.content : {};
   if (typeof content.systemPromptAppend !== 'string') return null;
   const skillKey = item.id.replace(/^skl_/, '');
-  const name = typeof (content as Record<string, unknown>).name === 'string' ? (content as Record<string, unknown>).name as string : skillKey;
-  const description = typeof (content as Record<string, unknown>).description === 'string' ? (content as Record<string, unknown>).description as string : '';
+  const meta = isRecord(item.metadata) ? item.metadata : {};
+  const name = (typeof meta.name === 'string' ? meta.name : '') || (typeof content.name === 'string' ? content.name : '') || skillKey.replace(/_/g, '-');
+  const rawDesc = (typeof meta.description === 'string' ? meta.description : '') || (typeof content.description === 'string' ? content.description : '') || name;
+  const description = rawDesc.replace(/"/g, '\\"');
   let body = content.systemPromptAppend as string;
   if (Array.isArray(content.constraints) && content.constraints.length > 0) {
     body += '\n\n### 约束条件\n\n';
@@ -395,31 +398,20 @@ export function buildManagedSkillMarkdown(item: SkillContentItem): { skillKey: s
       if (typeof c === 'string') body += `- ${c}\n`;
     }
   }
-  return { skillKey, markdown: `---\nname: ${name}\ndescription: ${description}\n---\n\n${body}\n` };
+  return { skillKey, markdown: `---\nname: ${name}\ndescription: "${description}"\n---\n\n${body}\n` };
 }
 
-function buildSkillsConfig(skillContents: SkillContentItem[], managedSkillsDir?: string) {
+function buildSkillsConfig(skillContents: SkillContentItem[]) {
   if (skillContents.length === 0) return null;
-  const hasManaged = managedSkillsDir && skillContents.some((item) => {
-    const content = isRecord(item.content) ? item.content : {};
-    return typeof content.systemPromptAppend === 'string';
-  });
   const entries: Record<string, { enabled: true }> = {};
   for (const item of skillContents) {
     const skillKey = item.id.replace(/^skl_/, '');
     entries[skillKey] = { enabled: true };
   }
-  const result: Record<string, unknown> = {};
-  if (hasManaged) {
-    result.load = { extraDirs: [managedSkillsDir] };
-  }
-  if (Object.keys(entries).length > 0) {
-    result.entries = entries;
-  }
-  return Object.keys(result).length > 0 ? result : null;
+  return Object.keys(entries).length > 0 ? { entries } : null;
 }
 
-export function toOpenClawRuntimeConfig(platformConfig: AnyJsonValue, options?: { workspaceDir?: string; pluginLoadPaths?: string[]; skillContents?: SkillContentItem[]; managedSkillsDir?: string }) {
+export function toOpenClawRuntimeConfig(platformConfig: AnyJsonValue, options?: { workspaceDir?: string; pluginLoadPaths?: string[]; skillContents?: SkillContentItem[] }) {
   const config = asRecord(platformConfig);
   const general = asRecord(config.general);
   const models = asArray(config.models).filter(isRecord);
@@ -455,6 +447,6 @@ export function toOpenClawRuntimeConfig(platformConfig: AnyJsonValue, options?: 
     agents: buildAgentsRuntimeConfig(agents, models, general, options),
     ...(runtimeChannels ? { channels: runtimeChannels } : {}),
     ...(runtimeBindings ? { bindings: runtimeBindings } : {}),
-    ...(options?.skillContents ? (() => { const sc = buildSkillsConfig(options.skillContents, options?.managedSkillsDir); return sc ? { skills: sc } : {}; })() : {}),
+    ...(options?.skillContents ? (() => { const sc = buildSkillsConfig(options.skillContents); return sc ? { skills: sc } : {}; })() : {}),
   } as AnyJsonValue);
 }

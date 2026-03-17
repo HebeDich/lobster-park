@@ -224,11 +224,10 @@ export class OpenClawGatewayProxyService {
 
     const pluginLoadPaths = await this.pluginRuntimeService.ensureRequiredPluginLoadPaths(materialized);
     const skillContents = await this.skillsService.getEnabledSkillContents(instanceId);
-    const managedSkillsDir = path.join(runtimePaths.statePath, 'managed-skills');
     for (const item of skillContents) {
       const result = buildManagedSkillMarkdown(item);
       if (result) {
-        const skillDir = path.join(managedSkillsDir, result.skillKey);
+        const skillDir = path.join(runtimePaths.workspacePath, 'skills', result.skillKey);
         await fs.mkdir(skillDir, { recursive: true });
         await fs.writeFile(path.join(skillDir, 'SKILL.md'), result.markdown, 'utf8');
       }
@@ -237,7 +236,6 @@ export class OpenClawGatewayProxyService {
       workspaceDir: runtimePaths.workspacePath,
       pluginLoadPaths,
       skillContents,
-      managedSkillsDir,
     }) as Record<string, unknown>;
     const runtimeTarget = transient
       ? {

@@ -89,10 +89,11 @@ export class LocalProcessAdapter implements RuntimeAdapter {
     if (bindings.length === 0) return [];
     const skillIds = bindings.map((b: { skillId: string }) => b.skillId);
     const skills = await this.prisma.skillPackage.findMany({ where: { id: { in: skillIds }, reviewStatus: 'approved' } });
-    return skills.map((skill: { id: string; contentJson: unknown; contentStoragePath: string | null }) => ({
+    return skills.map((skill: { id: string; contentJson: unknown; contentStoragePath: string | null; metadataJson: unknown }) => ({
       id: skill.id,
       content: skill.contentJson,
       storagePath: skill.contentStoragePath,
+      metadata: skill.metadataJson,
     }));
   }
 
@@ -104,11 +105,10 @@ export class LocalProcessAdapter implements RuntimeAdapter {
     const runtimeConfig = materializeSecrets(configJson, secretMap);
     const pluginLoadPaths = await this.pluginRuntimeService.ensureRequiredPluginLoadPaths(runtimeConfig);
     const skillContents = await this.resolveSkillContents(instanceId);
-    const managedSkillsDir = path.join(paths.statePath, 'managed-skills');
     for (const item of skillContents) {
       const result = buildManagedSkillMarkdown(item);
       if (result) {
-        const skillDir = path.join(managedSkillsDir, result.skillKey);
+        const skillDir = path.join(paths.workspacePath, 'skills', result.skillKey);
         await fs.mkdir(skillDir, { recursive: true });
         await fs.writeFile(path.join(skillDir, 'SKILL.md'), result.markdown, 'utf8');
       }
@@ -117,7 +117,6 @@ export class LocalProcessAdapter implements RuntimeAdapter {
       workspaceDir: paths.workspacePath,
       pluginLoadPaths,
       skillContents,
-      managedSkillsDir,
     }) as Record<string, AnyJsonValue>;
     const existingGateway = typeof openClawConfig.gateway === 'object' && openClawConfig.gateway !== null
       ? openClawConfig.gateway as Record<string, AnyJsonValue>

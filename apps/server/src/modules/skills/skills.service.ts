@@ -337,7 +337,7 @@ export class SkillsService {
   // ──────────────────────────── 运行时注入（服务端内部使用） ────────────────────────────
 
   /** 获取指定实例已启用的 Skill 的完整内容（用于运行时配置注入） */
-  async getEnabledSkillContents(instanceId: string): Promise<Array<{ id: string; content: unknown; storagePath: string | null }>> {
+  async getEnabledSkillContents(instanceId: string): Promise<Array<{ id: string; content: unknown; storagePath: string | null; metadata?: unknown }>> {
     const bindings = await this.prisma.instanceSkillBinding.findMany({
       where: { instanceId, enabled: true },
     });
@@ -363,6 +363,7 @@ export class SkillsService {
         id: skill.id,
         content,
         storagePath: skill.contentStoragePath,
+        metadata: skill.metadataJson,
       };
     });
   }

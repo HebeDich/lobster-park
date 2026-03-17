@@ -382,3 +382,21 @@
   - 修改 `apps/server/src/adapter/local-process-adapter.ts` — writeMaterializedConfig 写入 SKILL.md 并传 managedSkillsDir
   - 修改 `apps/server/src/adapter/container-adapter.ts` — writeMaterializedConfig 写入 SKILL.md（宿主路径）并传容器路径
   - 修改 `apps/server/src/modules/openclaw/openclaw-gateway-proxy.service.ts` — prepareConsoleEnv 写入 SKILL.md 并传 managedSkillsDir
+
+### 2026-03-18 00:30 — 【B23】Gateway 模式不扫描 extraDirs → 改为写入 workspace/skills/ + SKILL.md 格式修正
+
+- **发现什么问题**：
+  1. OpenClaw 容器中 gateway 模式不从 `extraDirs` 加载自定义 Skill
+  2. 生成的 SKILL.md 缺少 `description` 字段，导致 frontmatter 解析失败
+  3. 手动验证确认：写入 `<workspace>/skills/<skillKey>/SKILL.md`（只需 name + description）可被 OpenClaw 识别为 `✓ ready`（来源 `openclaw-workspace`）
+- **使用了什么方式解决**：
+  1. 三处调用方（container-adapter / local-process-adapter / gateway-proxy）改为将 SKILL.md 写入 `<workspace>/skills/<skillKey>/`（最高优先级加载路径，且 workspace 已作为 Docker volume 挂载）
+  2. 修正 SKILL.md frontmatter：从 `metadataJson` 获取 name/description，格式仅含 `name` + `description`（无需 metadata.openclaw）
+  3. 移除 `toOpenClawRuntimeConfig` 的 `managedSkillsDir`/`extraDirs` 参数
+  4. 移除了之前的 Docker volume mount 方案（不可扩展）
+- **改了哪些文件**：
+  - `apps/server/src/adapter/openclaw-runtime-config.ts` — SkillContentItem 增加 metadata，buildManagedSkillMarkdown 修正 frontmatter（name+description），buildSkillsConfig 简化为仅 entries，toOpenClawRuntimeConfig 移除 managedSkillsDir
+  - `apps/server/src/adapter/container-adapter.ts` — resolveSkillContents 返回 metadataJson，writeMaterializedConfig 写入 workspace/skills/
+  - `apps/server/src/adapter/local-process-adapter.ts` — resolveSkillContents 返回 metadataJson，写入 workspace/skills/
+  - `apps/server/src/modules/skills/skills.service.ts` — getEnabledSkillContents 返回 metadata
+  - `apps/server/src/modules/openclaw/openclaw-gateway-proxy.service.ts` — 写入 workspace/skills/，移除 managedSkillsDir
