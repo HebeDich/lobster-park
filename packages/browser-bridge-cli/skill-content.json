@@ -1,10 +1,13 @@
 {
   "type": "prompt_injection",
   "injectionMode": "append",
-  "systemPromptAppend": "## 浏览器桥接工具\n\n你可以通过 `browser-bridge` 命令控制用户的本地浏览器。使用前请先检查连接状态。\n\n### 可用命令\n\n```bash\n# 检查浏览器扩展是否在线\nbrowser-bridge status\n\n# 打开网址\nbrowser-bridge open <url>\n\n# 获取当前页面内容（URL、标题、正文）\nbrowser-bridge state\n\n# 点击页面元素（使用 CSS 选择器）\nbrowser-bridge click \"<selector>\"\n\n# 在输入框中输入文字\nbrowser-bridge input \"<selector>\" \"要输入的文字\"\n\n# 截取页面截图\nbrowser-bridge screenshot\n\n# 执行 JavaScript 并返回结果\nbrowser-bridge eval \"<javascript表达式>\"\n\n# 滚动页面\nbrowser-bridge scroll down\nbrowser-bridge scroll up\n\n# 浏览器导航\nbrowser-bridge back\nbrowser-bridge forward\n\n# 列出所有标签页\nbrowser-bridge tabs\n```\n\n### 使用规范\n\n1. **首次使用前**：运行 `browser-bridge status` 确认扩展已连接\n2. **每步操作后**：运行 `browser-bridge state` 确认页面状态变化\n3. **操作前告知**：在执行浏览器操作前，简要告诉用户你即将做什么\n4. **错误处理**：如果返回「浏览器扩展未连接」，提示用户检查扩展连接状态\n5. **选择器技巧**：优先使用 id 选择器（`#id`），其次 class（`.class`），最后属性选择器（`[name=\"field\"]`）\n\n### 典型工作流\n\n```\nbrowser-bridge status          → 确认连接\nbrowser-bridge open <url>      → 打开目标页面\nbrowser-bridge state           → 查看页面内容，确认加载完成\nbrowser-bridge click \"<btn>\"   → 交互操作\nbrowser-bridge state           → 确认操作结果\n```",
+  "systemPromptAppend": "## 浏览器桥接工具\n\n你可以通过 `{baseDir}/browser-bridge` 命令控制用户的本地浏览器。使用前请先检查连接状态。\n\n### 可用命令\n\n```bash\n# 检查浏览器扩展是否在线\n{baseDir}/browser-bridge status\n\n# 打开网址\n{baseDir}/browser-bridge open <url>\n\n# 获取当前页面内容（URL、标题、正文）\n{baseDir}/browser-bridge state\n\n# 点击页面元素（使用 CSS 选择器）\n{baseDir}/browser-bridge click \"<selector>\"\n\n# 在输入框中输入文字\n{baseDir}/browser-bridge input \"<selector>\" \"要输入的文字\"\n\n# 截取页面截图\n{baseDir}/browser-bridge screenshot\n\n# 执行 JavaScript 并返回结果\n{baseDir}/browser-bridge eval \"<javascript表达式>\"\n\n# 滚动页面\n{baseDir}/browser-bridge scroll down\n{baseDir}/browser-bridge scroll up\n\n# 浏览器导航\n{baseDir}/browser-bridge back\n{baseDir}/browser-bridge forward\n\n# 列出所有标签页\n{baseDir}/browser-bridge tabs\n```\n\n### 使用规范\n\n1. **首次使用前**：运行 `{baseDir}/browser-bridge status` 确认扩展已连接\n2. **每步操作后**：运行 `{baseDir}/browser-bridge state` 确认页面状态变化\n3. **操作前告知**：在执行浏览器操作前，简要告诉用户你即将做什么\n4. **错误处理**：如果返回「浏览器扩展未连接」，提示用户检查扩展连接状态\n5. **选择器技巧**：优先使用 id 选择器（`#id`），其次 class（`.class`），最后属性选择器（`[name=\"field\"]`）\n\n### 典型工作流\n\n```\n{baseDir}/browser-bridge status          → 确认连接\n{baseDir}/browser-bridge open <url>      → 打开目标页面\n{baseDir}/browser-bridge state           → 查看页面内容，确认加载完成\n{baseDir}/browser-bridge click \"<btn>\"   → 交互操作\n{baseDir}/browser-bridge state           → 确认操作结果\n```",
   "constraints": [
-    "使用浏览器桥接前必须先运行 browser-bridge status 检查连接",
+    "使用浏览器桥接前必须先运行 {baseDir}/browser-bridge status 检查连接",
     "操作用户浏览器前应简要告知用户即将执行的操作",
-    "每次页面导航或交互后应运行 browser-bridge state 确认结果"
-  ]
+    "每次页面导航或交互后应运行 {baseDir}/browser-bridge state 确认结果"
+  ],
+  "files": {
+    "browser-bridge": "#!/bin/sh\nexec node \"$(dirname \"$0\")/browser-bridge.js\" \"$@\"\n"
+  }
 }

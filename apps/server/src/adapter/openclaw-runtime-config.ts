@@ -383,7 +383,7 @@ export type SkillContentItem = {
  * 将平台管理的 prompt_injection 类 Skill 转为 OpenClaw SKILL.md 文件内容。
  * 返回 null 表示该 Skill 不适合转为 SKILL.md（非 prompt_injection 类型或无 systemPromptAppend）。
  */
-export function buildManagedSkillMarkdown(item: SkillContentItem): { skillKey: string; markdown: string } | null {
+export function buildManagedSkillMarkdown(item: SkillContentItem): { skillKey: string; markdown: string; files: Record<string, string> } | null {
   const content = isRecord(item.content) ? item.content : {};
   if (typeof content.systemPromptAppend !== 'string') return null;
   const skillKey = item.id.replace(/^skl_/, '');
@@ -398,7 +398,13 @@ export function buildManagedSkillMarkdown(item: SkillContentItem): { skillKey: s
       if (typeof c === 'string') body += `- ${c}\n`;
     }
   }
-  return { skillKey, markdown: `---\nname: ${name}\ndescription: "${description}"\n---\n\n${body}\n` };
+  const files: Record<string, string> = {};
+  if (isRecord(content.files)) {
+    for (const [fileName, fileContent] of Object.entries(content.files)) {
+      if (typeof fileContent === 'string') files[fileName] = fileContent;
+    }
+  }
+  return { skillKey, markdown: `---\nname: ${name}\ndescription: "${description}"\n---\n\n${body}\n`, files };
 }
 
 function buildSkillsConfig(skillContents: SkillContentItem[]) {

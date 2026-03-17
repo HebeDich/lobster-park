@@ -230,6 +230,10 @@ export class OpenClawGatewayProxyService {
         const skillDir = path.join(runtimePaths.workspacePath, 'skills', result.skillKey);
         await fs.mkdir(skillDir, { recursive: true });
         await fs.writeFile(path.join(skillDir, 'SKILL.md'), result.markdown, 'utf8');
+        for (const [fileName, fileContent] of Object.entries(result.files)) {
+          const filePath = path.join(skillDir, fileName);
+          await fs.writeFile(filePath, fileContent, { encoding: 'utf8', mode: 0o755 });
+        }
       }
     }
     const runtimeConfig = toOpenClawRuntimeConfig(materialized, {
