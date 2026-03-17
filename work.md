@@ -260,5 +260,15 @@
   - 新增 `apps/web/src/pages/platform/PlanManagePage.tsx` — 套餐管理页
   - 新增 `apps/web/src/pages/pricing/PricingPage.tsx` — 套餐中心页 + 支付弹窗
   - 修改 `apps/web/src/pages/workbench/WorkbenchPage.tsx` — 套餐配额卡片
-  - 修改 `apps/web/src/router/route-config.tsx` — 注册 /platform/plans 和 /pricing 路由
+  - 修改 `apps/web/src/router/route-config.tsx` — 注册 /platform/plans、/platform/orders 和 /pricing 路由
   - 修改 `work.md`
+
+### 补充修复（菜单图标 + 订单管理 + 菜单可见性）
+
+- 修改 `apps/web/src/layouts/AppLayout.tsx`：
+  - `iconMap` 新增 `platform-plans`(CrownOutlined)、`platform-orders`(OrderedListOutlined)、`pricing`(ShoppingOutlined)
+  - 新增 `NORMAL_ONLY_MENU_KEYS` 集合，管理员侧过滤掉仅普通用户可见的菜单（pricing）
+  - `NORMAL_USER_MENU_KEYS` 添加 `pricing`
+- 新增 `apps/web/src/pages/platform/OrderManagePage.tsx` — 管理端订单管理页（表格 + 分页 + 用户ID搜索）
+- 修改 `apps/web/src/router/route-config.tsx` — 注册 /platform/orders 路由
+- 修改 `apps/server/src/modules/payment/order.controller.ts` — 管理员不传 userId 时查看全部订单

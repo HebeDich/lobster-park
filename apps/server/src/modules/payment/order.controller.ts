@@ -29,7 +29,7 @@ export class OrderController {
   @Get()
   listOrders(@CurrentUser() currentUser: RequestUserContext, @Query('pageNo') pageNo = '1', @Query('pageSize') pageSize = '20', @Query('userId') userId?: string) {
     const isAdmin = currentUser.roles.includes('platform_admin') || currentUser.roles.includes('tenant_admin');
-    const effectiveUserId = isAdmin && userId ? userId : currentUser.id;
+    const effectiveUserId = isAdmin ? (userId || undefined) : currentUser.id;
     return this.orderService.listOrders(effectiveUserId, Number(pageNo), Number(pageSize));
   }
 

@@ -3,15 +3,18 @@ import {
   ApartmentOutlined,
   AuditOutlined,
   BellOutlined,
+  CrownOutlined,
   DashboardOutlined,
   DeploymentUnitOutlined,
   HddOutlined,
   HomeOutlined,
   MonitorOutlined,
   NodeIndexOutlined,
+  OrderedListOutlined,
   ScheduleOutlined,
   SafetyOutlined,
   SettingOutlined,
+  ShoppingOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
 import { Avatar, Breadcrumb, Dropdown, Layout, Menu, Space } from 'antd';
@@ -43,11 +46,15 @@ const iconMap: Record<string, React.ReactNode> = {
   'tenant-roles': <ApartmentOutlined />,
   'platform-settings': <SettingOutlined />,
   'platform-acceptance': <SafetyOutlined />,
+  'platform-plans': <CrownOutlined />,
+  'platform-orders': <OrderedListOutlined />,
+  pricing: <ShoppingOutlined />,
   health: <DeploymentUnitOutlined />,
   usage: <HddOutlined />,
 };
 
-const NORMAL_USER_MENU_KEYS = new Set(['workbench', 'instances', 'notifications', 'jobs']);
+const NORMAL_USER_MENU_KEYS = new Set(['workbench', 'instances', 'notifications', 'jobs', 'pricing']);
+const NORMAL_ONLY_MENU_KEYS = new Set(['pricing']);
 
 function toMenuItems(routes: AppRoute[], onPrefetch: (routePath: string) => void): MenuProps['items'] {
   return routes
@@ -90,6 +97,7 @@ export function AppLayout() {
     if (route.group !== 'main') return false;
     if (route.adminOnly && !isPlatformAdmin) return false;
     if (!isPlatformAdmin && route.menuKey && !NORMAL_USER_MENU_KEYS.has(route.menuKey)) return false;
+    if (isPlatformAdmin && route.menuKey && NORMAL_ONLY_MENU_KEYS.has(route.menuKey)) return false;
     return true;
   }), [isPlatformAdmin]);
   const menuItems = useMemo(() => toMenuItems(menuRoutes, handlePrefetch), [handlePrefetch, menuRoutes]);
