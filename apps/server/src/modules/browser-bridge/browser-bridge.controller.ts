@@ -19,8 +19,14 @@ const EXTENSION_FILES = [
 
 function resolveExtensionDir(): string | null {
   const candidates = [
+    // dev 模式: __dirname = apps/server/src/modules/browser-bridge/
+    path.resolve(__dirname, '../../../../../packages/browser-bridge-extension'),
+    // build 模式: __dirname = dist/apps/server/src/modules/browser-bridge/
     path.resolve(__dirname, '../../../../../../packages/browser-bridge-extension'),
+    // cwd = 项目根目录
     path.resolve(process.cwd(), 'packages/browser-bridge-extension'),
+    // cwd = apps/server/
+    path.resolve(process.cwd(), '../../packages/browser-bridge-extension'),
   ];
   for (const dir of candidates) {
     if (existsSync(path.join(dir, 'manifest.json'))) return dir;
