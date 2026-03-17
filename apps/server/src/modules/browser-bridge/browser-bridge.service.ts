@@ -214,10 +214,81 @@ export class BrowserBridgeService {
     return rawToken;
   }
 
+  // ========== CLI / Agent 调用：通过 Bearer token 执行指令 ==========
+
+  /**
+   * 通过桥接令牌执行浏览器指令（供 CLI 端点使用）
+   * 先验证令牌 → 解析 userId → 执行指令
+   */
+  async executeCommandByToken(
+    token: string,
+    action: string,
+    params: Record<string, unknown> = {},
+    timeoutMs = this.DEFAULT_TIMEOUT,
+  ): Promise<Record<string, unknown>> {
+    const user = await this.resolveUserFromBearerToken(token);
+    if (!user) {
+      throw new Error('无效的桥接令牌');
+    }
+
+    // status 命令特殊处理：不需要扩展已连接
+    if (action === 'status') {
+      const connected = this.isUserConnected(user.userId);
+      const client = this.clients.get(user.userId);
+      return {
+        success: true,
+        connected,
+        userId: user.userId,
+        ...(client ? { connectedAt: client.connectedAt } : {}),
+      };
+    }
+
+    return this.executeCommand(user.userId, action, params, timeoutMs);
+  }
+
+  /**
+   * 为 OpenClaw 会话签发短期 CLI 令牌（1小时有效）
+   * 返回原始令牌，供注入环境变量使用
+   */
+  async issueShortLivedCliToken(userId: string, tenantId: string): Promise<string> {
+    const rawToken = randomBytes(32).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+    const tokenHash = createHash('sha256').update(rawToken).digest('hex');
+    const now = Date.now();
+    const ONE_HOUR = 60 * 60 * 1000;
+
+    await this.prisma.sessionRecord.create({
+      data: {
+        id: `ses_${now}_brcli`,
+        tokenHash,
+        sessionType: 'bridge',
+        userId,
+        tenantId,
+        expiresAt: new Date(now + ONE_HOUR),
+      },
+    });
+
+    return rawToken;
+  }
+
   // ========== Token 验证 ==========
 
+  /**
+   * 从 WebSocket 连接参数中解析用户（内部用）
+   */
   private async resolveUserFromToken(token: string | null): Promise<{ userId: string } | null> {
     if (!token) return null;
+    return this.resolveUserByTokenHash(token);
+  }
+
+  /**
+   * 从 Bearer token 解析用户（供 CLI 端点认证）
+   */
+  async resolveUserFromBearerToken(token: string | null): Promise<{ userId: string } | null> {
+    if (!token) return null;
+    return this.resolveUserByTokenHash(token);
+  }
+
+  private async resolveUserByTokenHash(token: string): Promise<{ userId: string } | null> {
     try {
       const tokenHash = createHash('sha256').update(token).digest('hex');
       const session = await this.prisma.sessionRecord.findUnique({ where: { tokenHash } });

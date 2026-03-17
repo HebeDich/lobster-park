@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { Body, Controller, Get, Param, Post, Res } from '@nestjs/common';
-import type { Response } from 'express';
+import { Body, Controller, Get, Param, Post, Req, Res } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import AdmZip from 'adm-zip';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { RequestUserContext } from '../../common/auth/access-control';
@@ -146,6 +146,37 @@ export class BrowserBridgeController {
     try {
       const result = await this.bridgeService.executeCommand(
         userId,
+        body.action,
+        body.params ?? {},
+        body.timeout ?? 30_000,
+      );
+      return result;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, error: message };
+    }
+  }
+
+  /**
+   * CLI 端点：通过 Bearer 桥接令牌认证执行浏览器指令
+   * 供 browser-bridge CLI 脚本调用，不依赖 session cookie
+   */
+  @Post('browser-bridge/cli-execute')
+  async cliExecute(
+    @Req() req: Request,
+    @Body() body: { action: string; params?: Record<string, unknown>; timeout?: number },
+  ) {
+    const authHeader = req.headers.authorization ?? '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+    if (!token) {
+      return { success: false, error: '缺少 Authorization: Bearer <token> 头' };
+    }
+    if (!body.action) {
+      return { success: false, error: '缺少 action 参数' };
+    }
+    try {
+      const result = await this.bridgeService.executeCommandByToken(
+        token,
         body.action,
         body.params ?? {},
         body.timeout ?? 30_000,

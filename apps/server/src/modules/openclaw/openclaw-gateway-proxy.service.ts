@@ -1,5 +1,5 @@
 import { execFile as execFileCallback } from 'node:child_process';
-import { promises as fs } from 'node:fs';
+import { existsSync, promises as fs } from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { Injectable } from '@nestjs/common';
@@ -9,6 +9,7 @@ import { AccessControlService } from '../../common/auth/access-control.service';
 import { buildRuntimePaths, decodeCipherValue, materializeSecrets, resolveAppTempRootPath } from '../../adapter/local-process-helpers';
 import { OpenClawPluginRuntimeService } from '../../adapter/openclaw-plugin-runtime.service';
 import { toOpenClawRuntimeConfig } from '../../adapter/openclaw-runtime-config';
+import { BrowserBridgeService } from '../browser-bridge/browser-bridge.service';
 import { buildContainerName, getContainerRuntimePaths } from '../../adapter/container-adapter.helpers';
 import { PrismaService } from '../../common/database/prisma.service';
 import { RuntimeAdapterService } from '../../adapter/runtime-adapter.service';
@@ -175,6 +176,7 @@ export class OpenClawGatewayProxyService {
     private readonly accessControl: AccessControlService,
     private readonly runtimeAdapter: RuntimeAdapterService,
     private readonly connectivityService: OpenClawConnectivityService,
+    private readonly browserBridgeService: BrowserBridgeService,
     private readonly pluginRuntimeService: OpenClawPluginRuntimeService = new OpenClawPluginRuntimeService(),
   ) {}
 
@@ -198,7 +200,7 @@ export class OpenClawGatewayProxyService {
     return Object.fromEntries(rows.map((row) => [row.secretKey, decodeCipherValue(row.cipherValue)]));
   }
 
-  private async prepareConsoleEnv(instanceId: string, configJson: unknown, options?: { transient?: boolean }): Promise<PreparedConsoleEnv> {
+  private async prepareConsoleEnv(instanceId: string, configJson: unknown, options?: { transient?: boolean; currentUser?: RequestUserContext }): Promise<PreparedConsoleEnv> {
     const transient = options?.transient === true;
     const baseTmpDir = resolveAppTempRootPath();
     await fs.mkdir(baseTmpDir, { recursive: true });
@@ -259,6 +261,41 @@ export class OpenClawGatewayProxyService {
       return String(agents.list[0].id ?? 'main');
     })();
 
+    // 浏览器桥接环境变量注入
+    const bridgeEnv: Record<string, string> = {};
+    if (options?.currentUser) {
+      try {
+        const platformOrigin = process.env.WEB_APP_ORIGIN
+          || process.env.VITE_APP_ORIGIN
+          || process.env.CORS_ORIGINS?.split(',').map((s) => s.trim()).find(Boolean)
+          || 'http://127.0.0.1:3000';
+        const cliToken = await this.browserBridgeService.issueShortLivedCliToken(
+          options.currentUser.id,
+          options.currentUser.tenantId,
+        );
+        bridgeEnv.BROWSER_BRIDGE_API = platformOrigin;
+        bridgeEnv.BROWSER_BRIDGE_TOKEN = cliToken;
+        // CLI 脚本路径
+        const cliPath = this.resolveBridgeCliPath();
+        if (cliPath) {
+          bridgeEnv.BROWSER_BRIDGE_CLI = cliPath;
+          // 创建 wrapper 脚本供 exec 工具直接调用 browser-bridge
+          const wrapperPath = path.join(tempDir, 'browser-bridge');
+          const isWin = process.platform === 'win32';
+          if (isWin) {
+            await fs.writeFile(path.join(tempDir, 'browser-bridge.cmd'), `@echo off\nnode "${cliPath}" %*\n`, 'utf8');
+          } else {
+            await fs.writeFile(wrapperPath, `#!/bin/sh\nexec node "${cliPath}" "$@"\n`, { mode: 0o755 });
+          }
+          // 将 tempDir 加入 PATH，使 browser-bridge 命令可直接调用
+          const currentPath = process.env.PATH || '';
+          bridgeEnv.PATH = `${tempDir}${path.delimiter}${currentPath}`;
+        }
+      } catch {
+        // 签发令牌失败不阻塞会话启动
+      }
+    }
+
     return {
       instanceId,
       tempDir,
@@ -272,9 +309,10 @@ export class OpenClawGatewayProxyService {
       executionTarget: runtimeTarget.executionTarget,
       containerName: runtimeTarget.containerName,
       env: runtimeTarget.executionTarget === 'container'
-        ? { ...process.env }
+        ? { ...process.env, ...bridgeEnv }
         : {
             ...process.env,
+            ...bridgeEnv,
             OPENCLAW_STATE_DIR: runtimeTarget.stateDir || runtimePaths.statePath,
             OPENCLAW_CONFIG_PATH: configPath,
             OPENCLAW_WORKSPACE_DIR: runtimeTarget.hostWorkspaceDir || runtimePaths.workspacePath,
@@ -325,6 +363,19 @@ export class OpenClawGatewayProxyService {
     }
   }
 
+  private resolveBridgeCliPath(): string | null {
+    const candidates = [
+      path.resolve(__dirname, '../../../../../packages/browser-bridge-cli/browser-bridge.js'),
+      path.resolve(__dirname, '../../../../../../packages/browser-bridge-cli/browser-bridge.js'),
+      path.resolve(process.cwd(), 'packages/browser-bridge-cli/browser-bridge.js'),
+      path.resolve(process.cwd(), '../../packages/browser-bridge-cli/browser-bridge.js'),
+    ];
+    for (const candidate of candidates) {
+      try { if (existsSync(candidate)) return candidate; } catch { /* skip */ }
+    }
+    return null;
+  }
+
   private async readRecentHistory(stateDir: string, agentId: string, limit: number) {
     const sessionsIndexPath = path.join(stateDir, 'agents', agentId, 'sessions', 'sessions.json');
     const raw = await fs.readFile(sessionsIndexPath, 'utf8').catch(() => '');
@@ -352,7 +403,7 @@ export class OpenClawGatewayProxyService {
     ]);
 
     const mode = String(body.mode ?? 'webchat');
-    const context = await this.prepareConsoleEnv(instanceId, draft?.draftJson ?? {});
+    const context = await this.prepareConsoleEnv(instanceId, draft?.draftJson ?? {}, { currentUser });
 
     return { draft, runtimeInfo, connectivity, mode, context };
   }
@@ -403,6 +454,7 @@ export class OpenClawGatewayProxyService {
     const mode = String(body.mode ?? 'webchat');
     const context = await this.prepareConsoleEnv(instanceId, draft?.draftJson ?? {}, {
       transient: body.probe === true,
+      currentUser,
     });
 
     try {

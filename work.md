@@ -333,3 +333,22 @@
   - 修改 `packages/browser-bridge-extension/background.js` — 品牌名 + 日志前缀 + config.json 加载
   - 新增 `packages/browser-bridge-extension/config.json` — 默认配置（空 serverUrl）
   - 修改 `apps/server/src/modules/browser-bridge/browser-bridge.controller.ts` — 动态注入平台地址 + config.json 加入文件列表
+
+### OpenClaw 会话接入浏览器桥接（CLI + Skill 适配）
+
+- **发现什么问题**：OpenClaw 是独立 CLI 二进制，工具执行发生在其进程内部，平台无法直接注入 tool handler。`allowBrowser` 仅启用 OpenClaw 内置的服务器端无头浏览器，与我们的 Chrome 扩展浏览器桥接无关。需要一条通路让 Agent 通过 exec 工具调用浏览器桥接 API。
+- **使用了什么方式解决**：
+  1. 创建 `browser-bridge` CLI 脚本（Node.js），供 Agent 的 exec 工具调用，命令风格模仿 `browser-use`
+  2. 新增 `POST /api/v1/browser-bridge/cli-execute` 端点，支持 `Authorization: Bearer <token>` 认证，不依赖 session cookie
+  3. `BrowserBridgeService` 新增 `executeCommandByToken`（令牌验证→执行指令）、`issueShortLivedCliToken`（签发1小时有效的 CLI 令牌）、`resolveUserFromBearerToken`
+  4. 创建 Skill 定义文件（SKILL.md + skill-content.json），通过 systemPromptAppend 教 Agent 使用 browser-bridge 命令
+  5. OpenClaw 会话启动时（`prepareConsoleEnv`）自动注入 `BROWSER_BRIDGE_API`、`BROWSER_BRIDGE_TOKEN` 环境变量，并生成 wrapper 脚本使 `browser-bridge` 命令可直接调用
+  6. `OpenClawModule` 导入 `BrowserBridgeModule`，`OpenClawGatewayProxyService` 注入 `BrowserBridgeService`
+- **改了哪些文件**：
+  - 新增 `packages/browser-bridge-cli/browser-bridge.js` — CLI 脚本主体
+  - 新增 `packages/browser-bridge-cli/SKILL.md` — Skill 说明文档
+  - 新增 `packages/browser-bridge-cli/skill-content.json` — Skill contentJson 定义
+  - 修改 `apps/server/src/modules/browser-bridge/browser-bridge.service.ts` — 新增 executeCommandByToken、issueShortLivedCliToken、resolveUserFromBearerToken、resolveUserByTokenHash
+  - 修改 `apps/server/src/modules/browser-bridge/browser-bridge.controller.ts` — 新增 POST cli-execute 端点
+  - 修改 `apps/server/src/modules/openclaw/openclaw-gateway-proxy.service.ts` — 注入 BrowserBridgeService、prepareConsoleEnv 增加桥接环境变量注入、新增 resolveBridgeCliPath
+  - 修改 `apps/server/src/modules/openclaw/openclaw.module.ts` — imports 增加 BrowserBridgeModule

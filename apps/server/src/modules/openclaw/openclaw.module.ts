@@ -1,5 +1,6 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { AuditModule } from '../audit/audit.module';
+import { BrowserBridgeModule } from '../browser-bridge/browser-bridge.module';
 import { ConfigCenterModule } from '../config/config-center.module';
 import { InstanceModule } from '../instance/instance.module';
 import { NodeCenterModule } from '../node/node.module';
@@ -18,7 +19,7 @@ import { OpenClawWebUIProxyController } from './openclaw-webui-proxy.controller'
 import { OpenClawWorkspaceExportService } from './openclaw-workspace-export.service';
 
 @Module({
-  imports: [AuditModule, ConfigCenterModule, NodeCenterModule, PlatformModule, forwardRef(() => InstanceModule)],
+  imports: [AuditModule, BrowserBridgeModule, ConfigCenterModule, NodeCenterModule, PlatformModule, forwardRef(() => InstanceModule)],
   controllers: [OpenClawController, OpenClawWebUIProxyController, OpenClawSetupWizardController],
   providers: [OpenClawBasicConfigService, OpenClawChannelService, OpenClawConnectivityService, OpenClawGatewayProxyService, OpenClawNativePairingService, OpenClawSetupWizardService, OpenClawTerminalService, OpenClawTerminalRealtimeService, OpenClawWorkspaceExportService],
   exports: [OpenClawBasicConfigService, OpenClawChannelService, OpenClawConnectivityService, OpenClawGatewayProxyService, OpenClawNativePairingService, OpenClawSetupWizardService, OpenClawTerminalService, OpenClawTerminalRealtimeService, OpenClawWorkspaceExportService],
