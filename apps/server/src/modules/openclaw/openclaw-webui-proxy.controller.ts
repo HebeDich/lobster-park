@@ -4,6 +4,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { RequestUserContext } from '../../common/auth/access-control';
 import { AccessControlService } from '../../common/auth/access-control.service';
 import { PrismaService } from '../../common/database/prisma.service';
+import { PlatformService } from '../platform/platform.service';
 import {
   OpenClawNativePairingService,
   buildOpenClawDashboardUrl,
@@ -38,6 +39,7 @@ export class OpenClawWebUIProxyController {
     private readonly accessControl: AccessControlService,
     private readonly prisma: PrismaService,
     private readonly devicePairingService: OpenClawNativePairingService,
+    private readonly platformService: PlatformService,
   ) {}
 
   @Get('instances/:instanceId/openclaw/webui-info')
@@ -64,7 +66,8 @@ export class OpenClawWebUIProxyController {
       : {};
     const gatewayPort = Number(portBindings.http);
     const gatewayToken = typeof portBindings.gatewayToken === 'string' ? portBindings.gatewayToken : null;
-    const publicHost = resolveOpenClawPublicHost(request?.headers as Record<string, unknown> | undefined);
+    const branding = await this.platformService.getSiteBranding();
+    const publicHost = branding.lobsterUiHost || resolveOpenClawPublicHost(request?.headers as Record<string, unknown> | undefined);
 
     if (!Number.isFinite(gatewayPort)) {
       return {

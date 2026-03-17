@@ -272,3 +272,13 @@
 - 新增 `apps/web/src/pages/platform/OrderManagePage.tsx` — 管理端订单管理页（表格 + 分页 + 用户ID搜索）
 - 修改 `apps/web/src/router/route-config.tsx` — 注册 /platform/orders 路由
 - 修改 `apps/server/src/modules/payment/order.controller.ts` — 管理员不传 userId 时查看全部订单
+
+### 新增龙虾UI访问地址配置
+
+- **发现什么问题**：龙虾UI访问地址依赖请求头自动推导，内网/Docker 环境下推导结果可能不正确
+- **使用了什么方式解决**：在平台设置中新增 `lobsterUiHost` 配置项，优先级高于自动推导，留空则保持原行为
+- **改了哪些文件**：
+  - 修改 `apps/server/src/modules/platform/platform.service.ts` — SiteBranding 新增 lobsterUiHost 字段
+  - 修改 `apps/server/src/modules/openclaw/openclaw-webui-proxy.controller.ts` — 注入 PlatformService，优先使用 lobsterUiHost
+  - 修改 `apps/server/src/modules/openclaw/openclaw.module.ts` — 导入 PlatformModule
+  - 修改 `apps/web/src/pages/platform/PlatformSettingsPage.tsx` — 站点品牌新增「龙虾UI访问地址」输入框

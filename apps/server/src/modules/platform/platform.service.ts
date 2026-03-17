@@ -13,6 +13,7 @@ type SiteBranding = {
   logoUrl: string;
   faviconUrl: string;
   footerText: string;
+  lobsterUiHost: string;
 };
 
 type EmailAuthSettings = {
@@ -58,6 +59,7 @@ const DEFAULT_SITE_BRANDING: SiteBranding = {
   logoUrl: '',
   faviconUrl: '',
   footerText: '',
+  lobsterUiHost: '',
 };
 
 const DEFAULT_EMAIL_AUTH: EmailAuthSettings = {
@@ -193,6 +195,7 @@ export class PlatformService {
       logoUrl: readString(value.logoUrl, DEFAULT_SITE_BRANDING.logoUrl),
       faviconUrl: readString(value.faviconUrl, DEFAULT_SITE_BRANDING.faviconUrl),
       footerText: readString(value.footerText, DEFAULT_SITE_BRANDING.footerText),
+      lobsterUiHost: readString(value.lobsterUiHost, DEFAULT_SITE_BRANDING.lobsterUiHost),
     } satisfies SiteBranding;
   }
 

@@ -3,6 +3,7 @@ import { AuditModule } from '../audit/audit.module';
 import { ConfigCenterModule } from '../config/config-center.module';
 import { InstanceModule } from '../instance/instance.module';
 import { NodeCenterModule } from '../node/node.module';
+import { PlatformModule } from '../platform/platform.module';
 import { OpenClawBasicConfigService } from './openclaw-basic-config.service';
 import { OpenClawChannelService } from './openclaw-channel.service';
 import { OpenClawConnectivityService } from './openclaw-connectivity.service';
@@ -17,7 +18,7 @@ import { OpenClawWebUIProxyController } from './openclaw-webui-proxy.controller'
 import { OpenClawWorkspaceExportService } from './openclaw-workspace-export.service';
 
 @Module({
-  imports: [AuditModule, ConfigCenterModule, NodeCenterModule, forwardRef(() => InstanceModule)],
+  imports: [AuditModule, ConfigCenterModule, NodeCenterModule, PlatformModule, forwardRef(() => InstanceModule)],
   controllers: [OpenClawController, OpenClawWebUIProxyController, OpenClawSetupWizardController],
   providers: [OpenClawBasicConfigService, OpenClawChannelService, OpenClawConnectivityService, OpenClawGatewayProxyService, OpenClawNativePairingService, OpenClawSetupWizardService, OpenClawTerminalService, OpenClawTerminalRealtimeService, OpenClawWorkspaceExportService],
   exports: [OpenClawBasicConfigService, OpenClawChannelService, OpenClawConnectivityService, OpenClawGatewayProxyService, OpenClawNativePairingService, OpenClawSetupWizardService, OpenClawTerminalService, OpenClawTerminalRealtimeService, OpenClawWorkspaceExportService],

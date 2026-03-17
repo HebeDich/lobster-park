@@ -21,6 +21,7 @@ type SettingsFormValues = {
     logoUrl: string;
     faviconUrl: string;
     footerText: string;
+    lobsterUiHost: string;
   };
   email: {
     enabled: boolean;
@@ -91,6 +92,7 @@ function buildInitialValues(items: PlatformSetting[]): SettingsFormValues {
       logoUrl: readString(site.logoUrl, ''),
       faviconUrl: readString(site.faviconUrl, ''),
       footerText: readString(site.footerText, ''),
+      lobsterUiHost: readString(site.lobsterUiHost, ''),
     },
     email: {
       enabled: readBoolean(email.enabled, true),
@@ -245,6 +247,9 @@ export function PlatformSettingsPage() {
                   </Form.Item>
                   <Form.Item name={['site', 'footerText']} label="页脚文案">
                     <Input placeholder="登录页底部展示文案" />
+                  </Form.Item>
+                  <Form.Item name={['site', 'lobsterUiHost']} label="龙虾UI访问地址" extra="用于构建实例龙虾UI的访问URL。填写域名或IP（如 my-server.com 或 192.168.1.100），留空则自动从请求头推导">
+                    <Input placeholder="例如：my-server.com 或 192.168.1.100" />
                   </Form.Item>
                 </Card>
               </Col>
