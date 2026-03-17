@@ -337,6 +337,9 @@ export class OpenClawGatewayProxyService {
   }
 
   private async runOpenClawJson(args: string[], context: PreparedConsoleEnv) {
+    const bridgeEnvFlags = Object.entries(context.env || {})
+      .filter(([k]) => k.startsWith('BROWSER_BRIDGE_'))
+      .flatMap(([k, v]) => ['-e', `${k}=${v}`]);
     const execTarget = context.executionTarget === 'container'
       ? {
           bin: this.getDockerBinary(),
@@ -345,6 +348,7 @@ export class OpenClawGatewayProxyService {
             ...(this.getContainerExecUser() ? ['-u', this.getContainerExecUser()] : []),
             '-e',
             'HOME=/home/node',
+            ...bridgeEnvFlags,
             context.containerName || buildContainerName(context.instanceId),
             'openclaw',
             '--profile',
