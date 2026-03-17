@@ -21,6 +21,7 @@ export function InstanceDetailPage() {
   const [basicConfig, setBasicConfig] = useState<Record<string, unknown> | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [bridgeConnected, setBridgeConnected] = useState<boolean | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -42,6 +43,13 @@ export function InstanceDetailPage() {
   };
 
   useEffect(() => { void load(); }, [id]);
+
+  useEffect(() => {
+    fetch('/api/v1/browser-bridge/status', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((json) => { setBridgeConnected(Boolean((json.data ?? json).connected)); })
+      .catch(() => { setBridgeConnected(false); });
+  }, []);
 
   const resolveDashboardUrl = (info: Record<string, unknown>) => {
     if (typeof info.dashboardUrl === 'string' && info.dashboardUrl) {
@@ -255,7 +263,7 @@ export function InstanceDetailPage() {
         </Col>
       </Row>
 
-      <Card title="高级功能" size="small">
+      <Card title="高级功能" size="small" extra={bridgeConnected !== null ? <Tag color={bridgeConnected ? 'green' : 'default'}>{bridgeConnected ? '浏览器桥接已连接' : '浏览器桥接未连接'}</Tag> : null}>
         <Space wrap>
           <Button type="link"><Link to={`/instances/${id}/openclaw/channels`}>渠道接入</Link></Button>
           <Button type="link"><Link to={`/instances/${id}/terminal`}>实例终端</Link></Button>
@@ -267,6 +275,7 @@ export function InstanceDetailPage() {
           {isPlatformAdmin ? <Button type="link"><Link to={`/instances/${id}/health`}>健康页</Link></Button> : null}
           {isPlatformAdmin ? <Button type="link"><Link to={`/instances/${id}/usage`}>使用量</Link></Button> : null}
           {isPlatformAdmin ? <Button type="link"><Link to={`/instances/${id}/openclaw/pairing`}>高级排障 / 配对</Link></Button> : null}
+          <Button type="link" onClick={() => { window.open('/api/v1/browser-bridge/download', '_blank'); }}>下载浏览器桥接扩展</Button>
         </Space>
       </Card>
 

@@ -9,6 +9,7 @@ import { EnvelopeInterceptor } from './common/interceptors/envelope.interceptor'
 import { RealtimeService } from './common/realtime/realtime.service';
 import { registerStaticWeb, resolveStaticWebDistDir } from './bootstrap/static-web';
 import { OpenClawTerminalRealtimeService } from './modules/openclaw/openclaw-terminal-realtime.service';
+import { BrowserBridgeService } from './modules/browser-bridge/browser-bridge.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -26,6 +27,8 @@ async function bootstrap() {
   realtime.attach();
   const terminalRealtime = app.get(OpenClawTerminalRealtimeService);
   terminalRealtime.attach();
+  const browserBridge = app.get(BrowserBridgeService);
+  browserBridge.attach();
   httpServer.on('upgrade', (request: IncomingMessage, socket: Duplex, head: Buffer) => {
     if (realtime.canHandle(request.url)) {
       realtime.handleUpgrade(request, socket, head);
@@ -33,6 +36,10 @@ async function bootstrap() {
     }
     if (terminalRealtime.canHandle(request.url)) {
       terminalRealtime.handleUpgrade(request, socket, head);
+      return;
+    }
+    if (browserBridge.canHandle(request.url)) {
+      browserBridge.handleUpgrade(request, socket, head);
       return;
     }
     socket.destroy();

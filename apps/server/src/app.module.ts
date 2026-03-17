@@ -22,10 +22,11 @@ import { NotificationModule } from './modules/notification/notification.module';
 import { OpenClawModule } from './modules/openclaw/openclaw.module';
 import { PlatformModule } from './modules/platform/platform.module';
 import { PaymentModule } from './modules/payment/payment.module';
+import { BrowserBridgeModule } from './modules/browser-bridge/browser-bridge.module';
 import { TenantModule } from './modules/tenant/tenant.module';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true, load: [appConfig] }), PrismaModule, AccessControlModule, RealtimeModule, IdempotencyModule, RuntimeAdapterModule, AuthModule, TenantModule, InstanceModule, ConfigCenterModule, NodeCenterModule, MonitorModule, AlertModule, AuditModule, NotificationModule, JobModule, PlatformModule, CatalogModule, OpenClawModule, PaymentModule],
+  imports: [ConfigModule.forRoot({ isGlobal: true, load: [appConfig] }), PrismaModule, AccessControlModule, RealtimeModule, IdempotencyModule, RuntimeAdapterModule, AuthModule, TenantModule, InstanceModule, ConfigCenterModule, NodeCenterModule, MonitorModule, AlertModule, AuditModule, NotificationModule, JobModule, PlatformModule, CatalogModule, OpenClawModule, PaymentModule, BrowserBridgeModule],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

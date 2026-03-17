@@ -282,3 +282,21 @@
   - 修改 `apps/server/src/modules/openclaw/openclaw-webui-proxy.controller.ts` — 注入 PlatformService，优先使用 lobsterUiHost
   - 修改 `apps/server/src/modules/openclaw/openclaw.module.ts` — 导入 PlatformModule
   - 修改 `apps/web/src/pages/platform/PlatformSettingsPage.tsx` — 站点品牌新增「龙虾UI访问地址」输入框
+
+### 新增浏览器桥接扩展（Browser Bridge Extension）
+
+- **发现什么问题**：云端部署的龙虾乐园无法直接控制用户本地浏览器打开页面、获取内容
+- **使用了什么方式解决**：开发 Chrome Extension + 后端 WebSocket 桥接服务，扩展与云端建立长连接，Agent 可通过桥接向用户本地浏览器下发指令（navigate/getContent/screenshot/click/input/executeScript）
+- **改了哪些文件**：
+  - 新增 `packages/browser-bridge-extension/manifest.json` — Chrome Extension Manifest V3
+  - 新增 `packages/browser-bridge-extension/background.js` — WebSocket 连接管理 + 指令执行器
+  - 新增 `packages/browser-bridge-extension/popup.html` + `popup.js` — 扩展弹窗 UI
+  - 新增 `apps/server/src/modules/browser-bridge/browser-bridge.service.ts` — WebSocket 服务 + 连接管理 + 指令路由
+  - 新增 `apps/server/src/modules/browser-bridge/browser-bridge.controller.ts` — REST API（状态查询/指令执行）
+  - 新增 `apps/server/src/modules/browser-bridge/browser-bridge.module.ts` — NestJS 模块
+  - 修改 `apps/server/src/app.module.ts` — 注册 BrowserBridgeModule
+  - 修改 `apps/server/src/main.ts` — 添加 /ws/v1/browser-bridge 的 WebSocket 升级路由
+  - 修改 `apps/web/src/pages/instances/InstanceDetailPage.tsx` — 高级功能区显示浏览器桥接连接状态 + 下载扩展按钮
+  - 修改 `apps/server/src/modules/browser-bridge/browser-bridge.controller.ts` — 新增 GET /browser-bridge/download 端点，使用 adm-zip 动态打包扩展目录
+  - 新增 `packages/browser-bridge-extension/pack.js` — 独立打包脚本（可选）
+  - 复制 `lobster-park-icon-display.png` 到扩展 icons 目录作为 icon16/48/128.png
