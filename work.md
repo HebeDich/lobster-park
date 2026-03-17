@@ -151,3 +151,52 @@
   - 修改 `apps/server/src/modules/auth/auth.service.ts` — ensureUserFromOidc 改造 + callbackLinuxDo 错误兜底
   - 修改 `apps/web/src/pages/LoginPage.tsx` — auth_error 提示
   - 修改 `work.md`
+
+## 2026-03-17 10:50
+
+- **发现什么问题**：平台设置页邮箱登录卡片只有三个开关（启用/允许注册/需验证），缺少发件邮箱 SMTP 配置项（smtpHost、smtpPort、smtpSecure、smtpUser、smtpPassword、smtpFrom），管理员无法配置发件邮箱
+- **使用了什么方式解决**：参考 HiveDraw 的 `LoginManagementClient.tsx` 邮箱设置表单，在龙虾乐园平台设置页邮箱登录卡片中补齐全部 SMTP 配置项，包括服务器地址、端口、SSL 开关、用户名、密码、发件人。同步更新 TypeScript 类型定义、初始值构建函数，并补充 `readNumber` 辅助函数
+- **改了哪些文件**：
+  - 修改 `apps/web/src/pages/platform/PlatformSettingsPage.tsx` — 补齐 SMTP 配置表单项 + 类型定义 + 初始值构建 + readNumber 辅助函数
+  - 修改 `work.md`
+
+## 2026-03-17 10:55
+
+- **发现什么问题**：系统性排查注册/登录/设置链路，发现 4 处遗漏：
+  1. 前端配置 key 与后端不一致（前端 `email_auth`/`linuxdo_auth`，后端 `auth_email`/`auth_linuxdo`），导致前端保存的 SMTP 配置后端读不到
+  2. `EmailNotificationAdapter` 完全从环境变量读 SMTP 配置，不读数据库中的平台设置，管理员在后台配的 SMTP 信息无效
+  3. 邮件验证链接指向前端 `/verify-email`，但前端用 fetch 请求后端 API（返回 302 重定向），fetch 无法正确处理重定向
+  4. `RegisterPage` 中 `useNavigate` 导入但未使用
+- **使用了什么方式解决**：
+  1. 前端配置 key 对齐后端：`email_auth` → `auth_email`，`linuxdo_auth` → `auth_linuxdo`
+  2. `EmailNotificationAdapter` 注入 `PlatformService`，新增 `resolveSmtpConfig` 方法优先从数据库读取 SMTP 配置，环境变量作为兜底；`NotificationModule` 导入 `PlatformModule`
+  3. 邮件验证链接改为直指 API 路径 `/api/v1/auth/verify-email?token=xxx`，后端处理后 302 到 `/login?verified=true`
+  4. 移除 `RegisterPage` 中未使用的 `useNavigate` 导入和调用
+- **改了哪些文件**：
+  - 修改 `apps/web/src/pages/platform/PlatformSettingsPage.tsx` — 配置 key 修正
+  - 修改 `apps/server/src/modules/notification/notification.module.ts` — 导入 PlatformModule
+  - 修改 `apps/server/src/modules/notification/email-notification.adapter.ts` — 注入 PlatformService，优先读数据库 SMTP 配置
+  - 修改 `apps/server/src/modules/auth/auth.service.ts` — 验证链接改为 API 路径
+  - 修改 `apps/web/src/pages/RegisterPage.tsx` — 移除未使用的 navigate
+  - 修改 `work.md`
+
+## 2026-03-17 11:10
+
+- **发现什么问题**：登录页缺少找回密码功能，注册链接和忘记密码链接布局需要优化
+- **使用了什么方式解决**：实现完整找回密码流程：
+  1. Prisma 新增 `PasswordResetToken` 模型 + 迁移 SQL
+  2. `AuthService` 新增 `requestPasswordReset`（发送重置邮件，1 小时有效，不泄露用户是否存在）和 `resetPassword`（验证 token 并重置密码）
+  3. `AuthController` 新增 `POST /auth/forgot-password` 和 `POST /auth/reset-password` 接口
+  4. 前端新增 `ForgotPasswordPage`（输入邮箱发送重置邮件）和 `ResetPasswordPage`（输入新密码重置）
+  5. 路由新增 `/forgot-password` 和 `/reset-password` 公开路由
+  6. `LoginPage` 邮箱表单下方增加「忘记密码？」和「立即注册」左右对齐链接
+- **改了哪些文件**：
+  - 修改 `apps/server/prisma/schema.prisma` — 新增 PasswordResetToken 模型
+  - 新增 `apps/server/prisma/migrations/20260317110000_password_reset_token/migration.sql`
+  - 修改 `apps/server/src/modules/auth/auth.service.ts` — 新增 requestPasswordReset / resetPassword
+  - 修改 `apps/server/src/modules/auth/auth.controller.ts` — 新增忘记密码和重置密码接口
+  - 新增 `apps/web/src/pages/ForgotPasswordPage.tsx`
+  - 新增 `apps/web/src/pages/ResetPasswordPage.tsx`
+  - 修改 `apps/web/src/router/index.tsx` — 新增公开路由
+  - 修改 `apps/web/src/pages/LoginPage.tsx` — 忘记密码链接 + 注册链接布局调整
+  - 修改 `work.md`

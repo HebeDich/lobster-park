@@ -54,6 +54,21 @@ export class AuthController {
     );
   }
 
+  @Post('auth/forgot-password')
+  @HttpCode(200)
+  forgotPassword(@Body() body: Record<string, unknown>) {
+    return this.authService.requestPasswordReset(String(body.email ?? ''));
+  }
+
+  @Post('auth/reset-password')
+  @HttpCode(200)
+  resetPassword(@Body() body: Record<string, unknown>) {
+    return this.authService.resetPassword(
+      String(body.token ?? ''),
+      String(body.newPassword ?? ''),
+    );
+  }
+
   @Get('auth/verify-email')
   @SkipEnvelope()
   async verifyEmail(@Res() response: Response, @Query('token') token?: string) {

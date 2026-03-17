@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { Alert, Button, Card, Flex, Form, Input, Result, Space, Typography } from 'antd';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useSiteConfigStore } from '@/stores/site-config-store';
 
 export function RegisterPage() {
   const siteSettings = useSiteConfigStore((state) => state.siteSettings);
   const authOptions = useSiteConfigStore((state) => state.authOptions);
-  const navigate = useNavigate();
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);

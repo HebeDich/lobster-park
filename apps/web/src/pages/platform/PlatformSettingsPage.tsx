@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Card, Col, Descriptions, Drawer, Form, Input, List, Row, Select, Skeleton, Space, Switch, message } from 'antd';
+import { Alert, Button, Card, Col, Descriptions, Drawer, Form, Input, InputNumber, List, Row, Select, Skeleton, Space, Switch, message } from 'antd';
 import { PageHeaderCard } from '@/components/PageHeaderCard';
 import { DefaultService } from '@/api';
 import type { PlatformSetting } from '@/api/generated';
@@ -8,8 +8,8 @@ import { useAuthStore } from '@/stores/auth-store';
 import { useSiteConfigStore } from '@/stores/site-config-store';
 
 const SITE_BRANDING_KEY = 'site_branding';
-const EMAIL_AUTH_KEY = 'email_auth';
-const LINUXDO_AUTH_KEY = 'linuxdo_auth';
+const EMAIL_AUTH_KEY = 'auth_email';
+const LINUXDO_AUTH_KEY = 'auth_linuxdo';
 
 type SettingsFormValues = {
   site: {
@@ -25,6 +25,12 @@ type SettingsFormValues = {
     enabled: boolean;
     allowRegistration: boolean;
     requireEmailVerification: boolean;
+    smtpHost: string;
+    smtpPort: number;
+    smtpSecure: boolean;
+    smtpUser: string;
+    smtpPassword: string;
+    smtpFrom: string;
   };
   linuxdo: {
     enabled: boolean;
@@ -46,6 +52,10 @@ function readString(value: unknown, fallback = '') {
 
 function readBoolean(value: unknown, fallback = false) {
   return typeof value === 'boolean' ? value : fallback;
+}
+
+function readNumber(value: unknown, fallback = 0) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
 
 function readStringArray(value: unknown, fallback: string[] = []) {
@@ -71,6 +81,12 @@ function buildInitialValues(items: PlatformSetting[]): SettingsFormValues {
       enabled: readBoolean(email.enabled, true),
       allowRegistration: readBoolean(email.allowRegistration, false),
       requireEmailVerification: readBoolean(email.requireEmailVerification, false),
+      smtpHost: readString(email.smtpHost, ''),
+      smtpPort: readNumber(email.smtpPort, 465),
+      smtpSecure: readBoolean(email.smtpSecure, true),
+      smtpUser: readString(email.smtpUser, ''),
+      smtpPassword: readString(email.smtpPassword, ''),
+      smtpFrom: readString(email.smtpFrom, ''),
     },
     linuxdo: {
       enabled: readBoolean(linuxdo.enabled, false),
@@ -214,6 +230,24 @@ export function PlatformSettingsPage() {
                     </Form.Item>
                     <Form.Item name={['email', 'requireEmailVerification']} label="注册需邮箱验证" valuePropName="checked">
                       <Switch />
+                    </Form.Item>
+                    <Form.Item name={['email', 'smtpHost']} label="SMTP 服务器" rules={[{ required: true, message: '请输入 SMTP 服务器地址' }]}>
+                      <Input placeholder="smtp.example.com" />
+                    </Form.Item>
+                    <Form.Item name={['email', 'smtpPort']} label="SMTP 端口" rules={[{ required: true, message: '请输入端口号' }]}>
+                      <InputNumber min={1} max={65535} style={{ width: '100%' }} placeholder="465" />
+                    </Form.Item>
+                    <Form.Item name={['email', 'smtpSecure']} label="使用 SSL/TLS" valuePropName="checked">
+                      <Switch />
+                    </Form.Item>
+                    <Form.Item name={['email', 'smtpUser']} label="SMTP 用户名" rules={[{ required: true, message: '请输入 SMTP 用户名' }]}>
+                      <Input placeholder="noreply@example.com" />
+                    </Form.Item>
+                    <Form.Item name={['email', 'smtpPassword']} label="SMTP 密码" extra="修改后才会更新，留空则保留原密码">
+                      <Input.Password placeholder="请输入 SMTP 密码" />
+                    </Form.Item>
+                    <Form.Item name={['email', 'smtpFrom']} label="发件人" rules={[{ required: true, message: '请输入发件人地址' }]}>
+                      <Input placeholder="Example <noreply@example.com>" />
                     </Form.Item>
                   </Card>
                   <Card title="LinuxDo 登录">

@@ -676,7 +676,7 @@ export class AuthService {
     });
 
     const origin = process.env.WEB_APP_ORIGIN || process.env.VITE_APP_ORIGIN || 'http://127.0.0.1:4173';
-    const verifyUrl = `${origin}/verify-email?token=${encodeURIComponent(token)}`;
+    const verifyUrl = `${origin}/api/v1/auth/verify-email?token=${encodeURIComponent(token)}`;
 
     const siteBranding = await this.platformService.getSiteBranding();
     const siteName = siteBranding.title || '龙虾乐园';
@@ -716,5 +716,84 @@ export class AuthService {
     ]);
 
     return { verified: true };
+  }
+
+  async requestPasswordReset(email: string) {
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail) {
+      throw new BadRequestException('请输入邮箱地址');
+    }
+
+    const emailSettings = await this.platformService.getEmailAuthSettings();
+    if (!emailSettings.enabled) {
+      throw new BadRequestException('邮箱登录未启用');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { email: trimmedEmail } });
+    // 即使用户不存在也返回成功，避免泄露用户是否注册
+    if (!user || user.status === 'disabled') {
+      return { sent: true };
+    }
+
+    const token = this.randomToken(32);
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 小时有效
+
+    await this.prisma.passwordResetToken.create({
+      data: {
+        id: `prt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        userId: user.id,
+        token,
+        expiresAt,
+      },
+    });
+
+    const origin = process.env.WEB_APP_ORIGIN || process.env.VITE_APP_ORIGIN || 'http://127.0.0.1:4173';
+    const resetUrl = `${origin}/reset-password?token=${encodeURIComponent(token)}`;
+
+    const siteBranding = await this.platformService.getSiteBranding();
+    const siteName = siteBranding.title || '龙虾乐园';
+
+    await this.emailAdapter.send({
+      to: trimmedEmail,
+      subject: `【${siteName}】重置密码`,
+      body: `您好，\n\n您正在请求重置 ${siteName} 的登录密码。\n\n请点击以下链接重置密码：\n${resetUrl}\n\n该链接 1 小时内有效。如果您没有请求重置密码，请忽略此邮件。`,
+    });
+
+    return { sent: true };
+  }
+
+  async resetPassword(token: string, newPassword: string) {
+    if (!token) {
+      throw new BadRequestException('缺少重置 token');
+    }
+    if (!newPassword || newPassword.length < 6) {
+      throw new BadRequestException('密码长度不能少于 6 位');
+    }
+
+    const record = await this.prisma.passwordResetToken.findUnique({ where: { token } });
+    if (!record) {
+      throw new BadRequestException('无效的重置链接');
+    }
+    if (record.usedAt) {
+      throw new BadRequestException('该重置链接已被使用');
+    }
+    if (record.expiresAt.getTime() < Date.now()) {
+      throw new BadRequestException('重置链接已过期，请重新申请');
+    }
+
+    const passwordHash = await this.hashPassword(newPassword);
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: record.userId },
+        data: { passwordHash },
+      }),
+      this.prisma.passwordResetToken.update({
+        where: { id: record.id },
+        data: { usedAt: new Date() },
+      }),
+    ]);
+
+    return { reset: true };
   }
 }

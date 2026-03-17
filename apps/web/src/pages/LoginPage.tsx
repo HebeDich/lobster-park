@@ -89,16 +89,20 @@ export function LoginPage() {
               <Button block size='large' type='primary' htmlType='submit' loading={submitting}>
                 登录
               </Button>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
+                <Typography.Text type='secondary'>
+                  <Link to='/forgot-password'>忘记密码？</Link>
+                </Typography.Text>
+                {authOptions.email.allowRegistration ? (
+                  <Typography.Text type='secondary'>
+                    还没有账号？<Link to='/register'>立即注册</Link>
+                  </Typography.Text>
+                ) : null}
+              </div>
             </Form>
           ) : (
             <Alert type='info' showIcon message='当前未启用邮箱登录，请使用其他登录方式。' />
           )}
-
-          {authOptions.email.enabled && authOptions.email.allowRegistration ? (
-            <Typography.Text type='secondary'>
-              还没有账号？<Link to='/register'>立即注册</Link>
-            </Typography.Text>
-          ) : null}
 
           {authOptions.linuxdo.enabled ? (
             <Button block size='large' onClick={handleLinuxDoLogin}>
