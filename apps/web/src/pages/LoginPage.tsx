@@ -15,8 +15,6 @@ export function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
-  const verified = searchParams.get('verified') === 'true';
-  const verifyError = searchParams.get('verify_error');
   const authError = searchParams.get('auth_error');
   const from = (location.state as { from?: string } | null)?.from || '/workbench';
 
@@ -73,8 +71,6 @@ export function LoginPage() {
             </Typography.Text>
           </div>
 
-          {verified ? <Alert type='success' showIcon message='邮箱验证成功，现在可以登录了。' /> : null}
-          {verifyError ? <Alert type='error' showIcon message='邮箱验证失败，链接可能已过期或无效。' /> : null}
           {authError ? <Alert type='error' showIcon message={authErrorMessages[authError] || `登录失败（${authError}）`} /> : null}
           {error ? <Alert type='error' showIcon message={error} /> : null}
 

@@ -1,17 +1,65 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Button, Card, Flex, Form, Input, Result, Space, Typography } from 'antd';
 import { Link } from 'react-router-dom';
 import { useSiteConfigStore } from '@/stores/site-config-store';
+import { API_BASE_URL, apiRequest } from '@/api/client';
 
 export function RegisterPage() {
   const siteSettings = useSiteConfigStore((state) => state.siteSettings);
   const authOptions = useSiteConfigStore((state) => state.authOptions);
+  const requireVerification = authOptions.email.requireEmailVerification;
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<{ requiresVerification: boolean } | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [codeSending, setCodeSending] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const handleSubmit = async (values: { email: string; password: string; confirmPassword: string; displayName: string }) => {
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
+  const startCountdown = useCallback(() => {
+    setCountdown(60);
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, []);
+
+  const handleSendCode = async () => {
+    try {
+      await form.validateFields(['email']);
+    } catch {
+      return;
+    }
+    const email = form.getFieldValue('email') as string;
+    setCodeSending(true);
+    setError(null);
+    try {
+      await apiRequest(`${API_BASE_URL}/auth/send-register-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      startCountdown();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : '发送验证码失败');
+    } finally {
+      setCodeSending(false);
+    }
+  };
+
+  const handleSubmit = async (values: { email: string; password: string; confirmPassword: string; displayName: string; verificationCode?: string }) => {
     if (values.password !== values.confirmPassword) {
       setError('两次输入的密码不一致');
       return;
@@ -19,20 +67,17 @@ export function RegisterPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const response = await fetch('/api/v1/auth/register', {
+      await apiRequest(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: values.email,
           password: values.password,
           displayName: values.displayName,
+          verificationCode: values.verificationCode,
         }),
       });
-      const result = await response.json() as { data?: { registered: boolean; requiresVerification: boolean }; error?: { message: string } };
-      if (!response.ok) {
-        throw new Error(result.error?.message || '注册失败');
-      }
-      setSuccess({ requiresVerification: result.data?.requiresVerification ?? false });
+      setSuccess(true);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '注册失败');
     } finally {
@@ -62,11 +107,7 @@ export function RegisterPage() {
           <Result
             status='success'
             title='注册成功'
-            subTitle={
-              success.requiresVerification
-                ? '验证邮件已发送至您的邮箱，请查收并点击链接完成验证后再登录。'
-                : '您的账号已创建成功，现在可以登录了。'
-            }
+            subTitle='您的账号已创建成功，现在可以登录了。'
             extra={<Link to='/login'><Button type='primary'>前往登录</Button></Link>}
           />
         </Card>
@@ -92,6 +133,22 @@ export function RegisterPage() {
             <Form.Item label='邮箱' name='email' rules={[{ required: true, message: '请输入邮箱' }, { type: 'email', message: '请输入有效的邮箱地址' }]}>
               <Input placeholder='请输入邮箱' autoComplete='email' />
             </Form.Item>
+            {requireVerification ? (
+              <Form.Item label='邮箱验证码' required>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <Form.Item name='verificationCode' noStyle rules={[{ required: true, message: '请输入验证码' }]}>
+                    <Input placeholder='请输入 6 位验证码' maxLength={6} style={{ flex: 1 }} />
+                  </Form.Item>
+                  <Button
+                    disabled={countdown > 0}
+                    loading={codeSending}
+                    onClick={() => void handleSendCode()}
+                  >
+                    {countdown > 0 ? `${countdown}s 后重新发送` : '发送验证码'}
+                  </Button>
+                </div>
+              </Form.Item>
+            ) : null}
             <Form.Item label='密码' name='password' rules={[{ required: true, message: '请输入密码' }, { min: 8, message: '密码长度至少为 8 位' }]}>
               <Input.Password placeholder='请输入密码（至少 8 位）' autoComplete='new-password' />
             </Form.Item>

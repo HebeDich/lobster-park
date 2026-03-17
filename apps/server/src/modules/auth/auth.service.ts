@@ -614,7 +614,7 @@ export class AuthService {
     return this.wsTicketService.issue(currentUser);
   }
 
-  async registerWithEmail(email: string, password: string, displayName: string) {
+  async registerWithEmail(email: string, password: string, displayName: string, verificationCode?: string) {
     const emailSettings = await this.platformService.getEmailAuthSettings();
     if (!emailSettings.enabled) {
       throw new BadRequestException('邮箱登录未启用');
@@ -635,87 +635,95 @@ export class AuthService {
       throw new BadRequestException('该邮箱已被注册');
     }
 
+    // 校验邮箱验证码
+    if (emailSettings.requireEmailVerification) {
+      if (!verificationCode) {
+        throw new BadRequestException('请输入邮箱验证码');
+      }
+      const codeRecord = await this.prisma.emailVerificationCode.findFirst({
+        where: { email: trimmedEmail, code: verificationCode, usedAt: null },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (!codeRecord) {
+        throw new BadRequestException('验证码错误');
+      }
+      if (codeRecord.expiresAt.getTime() < Date.now()) {
+        throw new BadRequestException('验证码已过期，请重新发送');
+      }
+      await this.prisma.emailVerificationCode.update({
+        where: { id: codeRecord.id },
+        data: { usedAt: new Date() },
+      });
+    }
+
     const tenantId = await this.getDefaultTenantId();
     const passwordHash = await this.hashPassword(password);
-    const requireVerification = emailSettings.requireEmailVerification;
-    const userStatus = requireVerification ? 'pending_verification' : 'active';
 
-    const user = await this.prisma.user.create({
+    await this.prisma.user.create({
       data: {
         id: `usr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
         tenantId,
         email: trimmedEmail,
         displayName: trimmedName,
         passwordHash,
-        status: userStatus,
+        status: 'active',
         roleCodes: ['employee'],
       },
     });
 
-    if (requireVerification) {
-      await this.sendVerificationEmail(user.id, trimmedEmail);
-    }
-
-    return {
-      registered: true,
-      requiresVerification: requireVerification,
-    };
+    return { registered: true };
   }
 
-  async sendVerificationEmail(userId: string, email: string) {
-    const token = this.randomToken(32);
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  async sendRegisterCode(email: string) {
+    const trimmedEmail = String(email).trim().toLowerCase();
+    if (!trimmedEmail || !trimmedEmail.includes('@')) {
+      throw new BadRequestException('请输入有效的邮箱地址');
+    }
 
-    await this.prisma.emailVerificationToken.create({
+    const emailSettings = await this.platformService.getEmailAuthSettings();
+    if (!emailSettings.enabled) {
+      throw new BadRequestException('邮箱登录未启用');
+    }
+    if (!emailSettings.allowRegistration) {
+      throw new BadRequestException('当前不允许新用户注册');
+    }
+
+    const existing = await this.prisma.user.findUnique({ where: { email: trimmedEmail } });
+    if (existing) {
+      throw new BadRequestException('该邮箱已被注册');
+    }
+
+    // 防刷：同一邮箱 60 秒内只能发一次
+    const recentCode = await this.prisma.emailVerificationCode.findFirst({
+      where: { email: trimmedEmail, usedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (recentCode && Date.now() - recentCode.createdAt.getTime() < 60_000) {
+      throw new BadRequestException('验证码发送过于频繁，请稍后再试');
+    }
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 分钟有效
+
+    await this.prisma.emailVerificationCode.create({
       data: {
-        id: `evt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-        userId,
-        token,
+        id: `evc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        email: trimmedEmail,
+        code,
         expiresAt,
       },
     });
-
-    const origin = process.env.WEB_APP_ORIGIN || process.env.VITE_APP_ORIGIN || 'http://127.0.0.1:4173';
-    const verifyUrl = `${origin}/api/v1/auth/verify-email?token=${encodeURIComponent(token)}`;
 
     const siteBranding = await this.platformService.getSiteBranding();
     const siteName = siteBranding.title || '龙虾乐园';
 
     await this.emailAdapter.send({
-      to: email,
-      subject: `【${siteName}】请验证您的邮箱`,
-      body: `您好，\n\n感谢您注册 ${siteName}。\n\n请点击以下链接验证您的邮箱地址：\n${verifyUrl}\n\n该链接 24 小时内有效。\n\n如果您没有注册过，请忽略此邮件。`,
+      to: trimmedEmail,
+      subject: `【${siteName}】注册验证码`,
+      body: `您好，\n\n您的 ${siteName} 注册验证码为：${code}\n\n该验证码 10 分钟内有效。如果您没有请求此验证码，请忽略此邮件。`,
     });
-  }
 
-  async verifyEmailToken(token: string) {
-    if (!token) {
-      throw new BadRequestException('缺少验证 token');
-    }
-
-    const record = await this.prisma.emailVerificationToken.findUnique({ where: { token } });
-    if (!record) {
-      throw new BadRequestException('无效的验证链接');
-    }
-    if (record.usedAt) {
-      throw new BadRequestException('该验证链接已被使用');
-    }
-    if (record.expiresAt.getTime() < Date.now()) {
-      throw new BadRequestException('验证链接已过期，请重新注册');
-    }
-
-    await this.prisma.$transaction([
-      this.prisma.user.update({
-        where: { id: record.userId },
-        data: { status: 'active' },
-      }),
-      this.prisma.emailVerificationToken.update({
-        where: { id: record.id },
-        data: { usedAt: new Date() },
-      }),
-    ]);
-
-    return { verified: true };
+    return { sent: true };
   }
 
   async requestPasswordReset(email: string) {

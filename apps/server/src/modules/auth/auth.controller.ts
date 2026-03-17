@@ -44,6 +44,12 @@ export class AuthController {
     return this.authService.callbackLinuxDo(response, String(code ?? ''), String(state ?? ''));
   }
 
+  @Post('auth/send-register-code')
+  @HttpCode(200)
+  sendRegisterCode(@Body() body: Record<string, unknown>) {
+    return this.authService.sendRegisterCode(String(body.email ?? ''));
+  }
+
   @Post('auth/register')
   @HttpCode(200)
   register(@Body() body: Record<string, unknown>) {
@@ -51,6 +57,7 @@ export class AuthController {
       String(body.email ?? ''),
       String(body.password ?? ''),
       String(body.displayName ?? ''),
+      body.verificationCode ? String(body.verificationCode) : undefined,
     );
   }
 
@@ -69,16 +76,6 @@ export class AuthController {
     );
   }
 
-  @Get('auth/verify-email')
-  @SkipEnvelope()
-  async verifyEmail(@Res() response: Response, @Query('token') token?: string) {
-    try {
-      await this.authService.verifyEmailToken(String(token ?? ''));
-      response.redirect(302, '/login?verified=true');
-    } catch {
-      response.redirect(302, '/login?verify_error=invalid_or_expired');
-    }
-  }
 
   @Post('auth/refresh')
   @HttpCode(200)

@@ -341,13 +341,15 @@ model InstanceSkillBinding {
   @@unique([instanceId, skillId])
 }
 
-model EmailVerificationToken {
+model EmailVerificationCode {
   id        String    @id
-  userId    String
-  token     String    @unique
+  email     String
+  code      String
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
+
+  @@index([email, code])
 }
 
 model PasswordResetToken {

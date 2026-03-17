@@ -200,3 +200,22 @@
   - 修改 `apps/web/src/router/index.tsx` — 新增公开路由
   - 修改 `apps/web/src/pages/LoginPage.tsx` — 忘记密码链接 + 注册链接布局调整
   - 修改 `work.md`
+
+## 2026-03-17 11:20
+
+- **发现什么问题**：注册流程缺少验证码校验，用户可以直接注册无需邮箱验证；旧的邮箱验证链接流程（注册后发链接→点链接激活）体验差且存在 fetch 302 冲突
+- **使用了什么方式解决**：改为注册前邮箱验证码方案：
+  1. Prisma 将 `EmailVerificationToken` 替换为 `EmailVerificationCode`（email+code 模型）+ 迁移 SQL
+  2. `AuthService` 新增 `sendRegisterCode`（生成6位验证码、10分钟有效、60秒防刷）；`registerWithEmail` 增加验证码校验参数，通过后直接创建 active 用户
+  3. `AuthController` 新增 `POST /auth/send-register-code`；`register` 接口传递 verificationCode；移除旧 `GET /auth/verify-email` 接口
+  4. `RegisterPage` 全面改造：邮箱输入后显示「发送验证码」按钮（60秒倒计时），验证码输入框仅在 `requireEmailVerification` 启用时显示，使用 `apiRequest` 替代原始 fetch
+  5. 移除 `VerifyEmailPage` 路由和导入；`LoginPage` 移除旧 verified/verify_error 参数提示
+- **改了哪些文件**：
+  - 修改 `apps/server/prisma/schema.prisma` — EmailVerificationToken → EmailVerificationCode
+  - 新增 `apps/server/prisma/migrations/20260317111000_email_verification_code/migration.sql`
+  - 修改 `apps/server/src/modules/auth/auth.service.ts` — sendRegisterCode + registerWithEmail 验证码校验 + 移除旧方法
+  - 修改 `apps/server/src/modules/auth/auth.controller.ts` — 新增 send-register-code + 移除 verify-email + register 传递验证码
+  - 修改 `apps/web/src/pages/RegisterPage.tsx` — 验证码输入框 + 发送按钮 + 60秒倒计时
+  - 修改 `apps/web/src/router/index.tsx` — 移除 /verify-email 路由
+  - 修改 `apps/web/src/pages/LoginPage.tsx` — 移除旧验证提示
+  - 修改 `work.md`
