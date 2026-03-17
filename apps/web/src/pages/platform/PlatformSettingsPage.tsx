@@ -10,6 +10,7 @@ import { useSiteConfigStore } from '@/stores/site-config-store';
 const SITE_BRANDING_KEY = 'site_branding';
 const EMAIL_AUTH_KEY = 'auth_email';
 const LINUXDO_AUTH_KEY = 'auth_linuxdo';
+const EPAY_KEY = 'pay_epay';
 
 type SettingsFormValues = {
   site: {
@@ -40,6 +41,19 @@ type SettingsFormValues = {
     redirectUri: string;
     scopes: string[];
   };
+  epay: {
+    enabled: boolean;
+    pid: string;
+    secret: string;
+    notifyUrl: string;
+    returnUrl: string;
+    apiPayUrl: string;
+    apiQueryUrl: string;
+    redirect: boolean;
+    channels: string[];
+    freeQuotaMaxInstances: number;
+    freeQuotaAllowedSpecs: string;
+  };
 };
 
 function asRecord(value: unknown) {
@@ -66,6 +80,7 @@ function buildInitialValues(items: PlatformSetting[]): SettingsFormValues {
   const site = asRecord(items.find((item) => item.settingKey === SITE_BRANDING_KEY)?.settingValueJson);
   const email = asRecord(items.find((item) => item.settingKey === EMAIL_AUTH_KEY)?.settingValueJson);
   const linuxdo = asRecord(items.find((item) => item.settingKey === LINUXDO_AUTH_KEY)?.settingValueJson);
+  const epay = asRecord(items.find((item) => item.settingKey === EPAY_KEY)?.settingValueJson);
 
   return {
     site: {
@@ -95,6 +110,19 @@ function buildInitialValues(items: PlatformSetting[]): SettingsFormValues {
       clientSecret: readString(linuxdo.clientSecret, ''),
       redirectUri: readString(linuxdo.redirectUri, ''),
       scopes: readStringArray(linuxdo.scopes, ['openid', 'profile', 'email']),
+    },
+    epay: {
+      enabled: readBoolean(epay.enabled, false),
+      pid: readString(epay.pid, ''),
+      secret: readString(epay.secret, ''),
+      notifyUrl: readString(epay.notifyUrl, ''),
+      returnUrl: readString(epay.returnUrl, ''),
+      apiPayUrl: readString(epay.apiPayUrl, ''),
+      apiQueryUrl: readString(epay.apiQueryUrl, ''),
+      redirect: readBoolean(epay.redirect, false),
+      channels: readStringArray(epay.channels, ['wxpay', 'alipay']),
+      freeQuotaMaxInstances: readNumber(epay.freeQuotaMaxInstances, 1),
+      freeQuotaAllowedSpecs: readString(epay.freeQuotaAllowedSpecs, 'S'),
     },
   };
 }
@@ -131,7 +159,7 @@ export function PlatformSettingsPage() {
   }, []);
 
   const otherItems = useMemo(
-    () => items.filter((item) => ![SITE_BRANDING_KEY, EMAIL_AUTH_KEY, LINUXDO_AUTH_KEY].includes(item.settingKey ?? '')),
+    () => items.filter((item) => ![SITE_BRANDING_KEY, EMAIL_AUTH_KEY, LINUXDO_AUTH_KEY, EPAY_KEY].includes(item.settingKey ?? '')),
     [items],
   );
 
@@ -149,6 +177,7 @@ export function PlatformSettingsPage() {
         DefaultService.putPlatformSetting(SITE_BRANDING_KEY, { settingValueJson: values.site }),
         DefaultService.putPlatformSetting(EMAIL_AUTH_KEY, { settingValueJson: values.email }),
         DefaultService.putPlatformSetting(LINUXDO_AUTH_KEY, { settingValueJson: values.linuxdo }),
+        DefaultService.putPlatformSetting(EPAY_KEY, { settingValueJson: values.epay }),
       ]);
       invalidatePlatformSettingsData();
       await Promise.all([load(true), loadPublicConfig(true)]);
@@ -271,6 +300,52 @@ export function PlatformSettingsPage() {
                     </Form.Item>
                   </Card>
                 </Space>
+              </Col>
+            </Row>
+            <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+              <Col xs={24} xl={12}>
+                <Card title="易支付配置">
+                  <Form.Item name={['epay', 'enabled']} label="启用易支付" valuePropName="checked">
+                    <Switch />
+                  </Form.Item>
+                  <Form.Item name={['epay', 'pid']} label="商户 PID">
+                    <Input placeholder="请填写商户 PID" />
+                  </Form.Item>
+                  <Form.Item name={['epay', 'secret']} label="商户密钥">
+                    <Input.Password placeholder="请填写商户密钥" />
+                  </Form.Item>
+                  <Form.Item name={['epay', 'apiPayUrl']} label="支付请求地址" extra="易支付平台提供的 API 支付接口">
+                    <Input placeholder="https://易支付平台/submit.php 或 /mapi.php" />
+                  </Form.Item>
+                  <Form.Item name={['epay', 'apiQueryUrl']} label="订单查询地址" extra="易支付平台提供的订单查询接口">
+                    <Input placeholder="https://易支付平台/api.php" />
+                  </Form.Item>
+                  <Form.Item name={['epay', 'notifyUrl']} label="异步通知地址" extra="您的域名 + /api/v1/pay/notify">
+                    <Input placeholder="https://您的域名/api/v1/pay/notify" />
+                  </Form.Item>
+                  <Form.Item name={['epay', 'returnUrl']} label="同步回调地址" extra="支付完成后浏览器跳转地址">
+                    <Input placeholder="https://您的域名/pricing?paid=true" />
+                  </Form.Item>
+                  <Form.Item name={['epay', 'redirect']} label="跳转支付模式" valuePropName="checked" extra="仅 mapi 接口支持不跳转（二维码模式），其他接口需开启跳转">
+                    <Switch />
+                  </Form.Item>
+                  <Form.Item name={['epay', 'channels']} label="支付渠道">
+                    <Select mode="multiple" placeholder="请选择支付渠道" options={[
+                      { label: '微信支付', value: 'wxpay' },
+                      { label: '支付宝', value: 'alipay' },
+                    ]} />
+                  </Form.Item>
+                </Card>
+              </Col>
+              <Col xs={24} xl={12}>
+                <Card title="免费用户配额" extra="未购买套餐用户的默认限制">
+                  <Form.Item name={['epay', 'freeQuotaMaxInstances']} label="最大实例数">
+                    <InputNumber min={0} max={100} style={{ width: '100%' }} placeholder="1" />
+                  </Form.Item>
+                  <Form.Item name={['epay', 'freeQuotaAllowedSpecs']} label="允许的实例规格" extra="逗号分隔，如 S,M,L">
+                    <Input placeholder="S" />
+                  </Form.Item>
+                </Card>
               </Col>
             </Row>
           </Form>

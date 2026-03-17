@@ -36,6 +36,20 @@ type LinuxDoAuthSettings = {
   scopes: string;
 };
 
+type EpaySettings = {
+  enabled: boolean;
+  pid: string;
+  secret: string;
+  notifyUrl: string;
+  returnUrl: string;
+  apiPayUrl: string;
+  apiQueryUrl: string;
+  redirect: boolean;
+  channels: string[];
+  freeQuotaMaxInstances: number;
+  freeQuotaAllowedSpecs: string;
+};
+
 const DEFAULT_SITE_BRANDING: SiteBranding = {
   title: '龙虾乐园',
   titleEn: 'LOBSTER PARK',
@@ -65,6 +79,20 @@ const DEFAULT_LINUXDO_AUTH: LinuxDoAuthSettings = {
   clientSecret: '',
   redirectUri: '',
   scopes: 'openid profile email',
+};
+
+const DEFAULT_EPAY: EpaySettings = {
+  enabled: false,
+  pid: '',
+  secret: '',
+  notifyUrl: '',
+  returnUrl: '',
+  apiPayUrl: '',
+  apiQueryUrl: '',
+  redirect: false,
+  channels: ['wxpay', 'alipay'],
+  freeQuotaMaxInstances: 1,
+  freeQuotaAllowedSpecs: 'S',
 };
 
 function extract(content: string, label: string) {
@@ -216,6 +244,29 @@ export class PlatformService {
         authorizeUrl: '/api/v1/auth/linuxdo/authorize',
       },
     };
+  }
+
+  async getEpaySettings() {
+    const value = await this.getSettingObject('pay_epay');
+    let channels = DEFAULT_EPAY.channels;
+    if (typeof value.channels === 'string') {
+      try { channels = JSON.parse(value.channels); } catch { channels = String(value.channels).split(',').map((s: string) => s.trim()); }
+    } else if (Array.isArray(value.channels)) {
+      channels = value.channels.map((c: unknown) => String(c));
+    }
+    return {
+      enabled: readBoolean(value.enabled, DEFAULT_EPAY.enabled),
+      pid: readString(value.pid, DEFAULT_EPAY.pid),
+      secret: readString(value.secret, DEFAULT_EPAY.secret),
+      notifyUrl: readString(value.notifyUrl, DEFAULT_EPAY.notifyUrl),
+      returnUrl: readString(value.returnUrl, DEFAULT_EPAY.returnUrl),
+      apiPayUrl: readString(value.apiPayUrl, DEFAULT_EPAY.apiPayUrl),
+      apiQueryUrl: readString(value.apiQueryUrl, DEFAULT_EPAY.apiQueryUrl),
+      redirect: readBoolean(value.redirect, DEFAULT_EPAY.redirect),
+      channels,
+      freeQuotaMaxInstances: readNumber(value.freeQuotaMaxInstances, DEFAULT_EPAY.freeQuotaMaxInstances),
+      freeQuotaAllowedSpecs: readString(value.freeQuotaAllowedSpecs, DEFAULT_EPAY.freeQuotaAllowedSpecs),
+    } satisfies EpaySettings;
   }
 
   getRuntimeSchema(runtimeVersion: string) {

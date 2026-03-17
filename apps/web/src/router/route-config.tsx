@@ -54,6 +54,8 @@ const instanceSetupWizardPageLoader = () => import('@/pages/instances/InstanceSe
 const instanceChatPageLoader = () => import('@/pages/instances/InstanceChatPage');
 const accountSettingsPageLoader = () => import('@/pages/account/AccountSettingsPage');
 const openClawAcceptanceCenterPageLoader = () => import('@/pages/platform/OpenClawAcceptanceCenterPage');
+const planManagePageLoader = () => import('@/pages/platform/PlanManagePage');
+const pricingPageLoader = () => import('@/pages/pricing/PricingPage');
 
 const routeComponentLoaders = [
   { path: '/workbench', loader: workbenchPageLoader },
@@ -86,6 +88,8 @@ const routeComponentLoaders = [
   { path: '/tenant/roles', loader: tenantRolesPageLoader },
   { path: '/platform/settings', loader: platformSettingsPageLoader },
   { path: '/platform/openclaw/acceptance', loader: openClawAcceptanceCenterPageLoader },
+  { path: '/platform/plans', loader: planManagePageLoader },
+  { path: '/pricing', loader: pricingPageLoader },
 ] as const;
 
 export function prefetchRouteComponent(pathname: string) {
@@ -125,6 +129,8 @@ const TenantUsersPage = lazyNamed(tenantUsersPageLoader, 'TenantUsersPage');
 const TenantRolesPage = lazyNamed(tenantRolesPageLoader, 'TenantRolesPage');
 const PlatformSettingsPage = lazyNamed(platformSettingsPageLoader, 'PlatformSettingsPage');
 const OpenClawAcceptanceCenterPage = lazyNamed(openClawAcceptanceCenterPageLoader, 'OpenClawAcceptanceCenterPage');
+const PlanManagePage = lazyNamed(planManagePageLoader, 'PlanManagePage');
+const PricingPage = lazyNamed(pricingPageLoader, 'PricingPage');
 
 function suspense(node: ReactNode) {
   return <Suspense fallback={<div style={{ padding: 24 }}><Spin /></div>}>{node}</Suspense>;
@@ -178,4 +184,6 @@ export const appRoutes: AppRoute[] = [
   withPermission({ path: '/platform/skills', title: '技能管理', permission: 'skill.manage', adminOnly: true, menuKey: 'platform-skills', group: 'main', component: <SkillManagePage /> }),
   withPermission({ path: '/platform/settings', title: '平台设置', permission: ['platform.settings.view', 'platform.settings.manage'], adminOnly: true, menuKey: 'platform-settings', group: 'main', component: <PlatformSettingsPage /> }),
   withPermission({ path: '/platform/openclaw/acceptance', title: '联调验收中心', permission: ['platform.settings.view', 'platform.settings.manage'], adminOnly: true, menuKey: 'platform-acceptance', group: 'main', component: <OpenClawAcceptanceCenterPage /> }),
+  withPermission({ path: '/platform/plans', title: '套餐管理', permission: 'platform.settings.manage', adminOnly: true, menuKey: 'platform-plans', group: 'main', component: <PlanManagePage /> }),
+  withPermission({ path: '/pricing', title: '套餐中心', permission: undefined, menuKey: 'pricing', group: 'main', component: <PricingPage /> }),
 ];

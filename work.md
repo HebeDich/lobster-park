@@ -219,3 +219,46 @@
   - 修改 `apps/web/src/router/index.tsx` — 移除 /verify-email 路由
   - 修改 `apps/web/src/pages/LoginPage.tsx` — 移除旧验证提示
   - 修改 `work.md`
+
+## 2026-03-17 12:20
+
+- **发现什么问题**：平台缺少支付与套餐体系，用户无法付费购买更多实例配额
+- **使用了什么方式解决**：参照 HiveDraw 易支付集成模式，在 NestJS + Prisma 架构上实现完整支付与套餐系统：
+  1. Prisma 新增 `Plan`（套餐定义）、`PaymentOrder`（支付订单）、`UserSubscription`（用户订阅）三个模型 + 迁移 SQL
+  2. `PlatformService` 新增 `getEpaySettings()` 读取易支付配置（PID/密钥/API地址/渠道/免费配额等）
+  3. 平台设置页新增「易支付配置」和「免费用户配额」两个 Card
+  4. 新建 `PaymentModule`，包含：
+     - `EpayService`：MD5 签名生成/验签/订单号生成/参数格式化
+     - `PlanService`：套餐 CRUD
+     - `SubscriptionService`：用户订阅管理、配额查询（含免费用户默认配额）
+     - `OrderService`：创建订单、查询订单、处理异步通知（支付成功自动激活订阅）
+     - `PlanController`：`/plans` 套餐增删改查 API
+     - `OrderController`：`/orders/buy`、`/orders/query`、`/orders/my-quota`、`/orders/my-subscriptions` API
+     - `PaymentNotifyController`：`/pay/notify` GET+POST 公开回调接口
+  5. `InstanceService.createInstance` 增加配额校验：非管理员创建实例前检查实例数上限和规格限制
+  6. `InstanceModule` 导入 `PaymentModule` 以注入 `SubscriptionService`
+  7. 前端新增管理端「套餐管理」页 `/platform/plans`：表格展示 + 新增/编辑/删除弹窗
+  8. 前端新增用户「套餐中心」页 `/pricing`：卡片式套餐展示 + 支付弹窗（二维码/跳转两种模式 + 轮询订单状态）
+  9. 工作台增加套餐配额卡片：显示当前套餐名、实例使用进度条、规格、到期时间、升级链接
+  10. 路由配置注册 `/platform/plans`（管理员）和 `/pricing`（所有用户）
+- **改了哪些文件**：
+  - 修改 `apps/server/prisma/schema.prisma` — 新增 Plan/PaymentOrder/UserSubscription 模型
+  - 新增 `apps/server/prisma/migrations/20260317120000_payment_models/migration.sql`
+  - 修改 `apps/server/src/modules/platform/platform.service.ts` — 新增 EpaySettings 类型 + getEpaySettings()
+  - 修改 `apps/server/src/app.module.ts` — 注册 PaymentModule
+  - 修改 `apps/server/src/modules/instance/instance.module.ts` — 导入 PaymentModule
+  - 修改 `apps/server/src/modules/instance/instance.service.ts` — 注入 SubscriptionService + 配额校验
+  - 新增 `apps/server/src/modules/payment/payment.module.ts`
+  - 新增 `apps/server/src/modules/payment/epay.service.ts`
+  - 新增 `apps/server/src/modules/payment/plan.service.ts`
+  - 新增 `apps/server/src/modules/payment/plan.controller.ts`
+  - 新增 `apps/server/src/modules/payment/subscription.service.ts`
+  - 新增 `apps/server/src/modules/payment/order.service.ts`
+  - 新增 `apps/server/src/modules/payment/order.controller.ts`
+  - 新增 `apps/server/src/modules/payment/payment-notify.controller.ts`
+  - 修改 `apps/web/src/pages/platform/PlatformSettingsPage.tsx` — 新增易支付配置/免费配额表单
+  - 新增 `apps/web/src/pages/platform/PlanManagePage.tsx` — 套餐管理页
+  - 新增 `apps/web/src/pages/pricing/PricingPage.tsx` — 套餐中心页 + 支付弹窗
+  - 修改 `apps/web/src/pages/workbench/WorkbenchPage.tsx` — 套餐配额卡片
+  - 修改 `apps/web/src/router/route-config.tsx` — 注册 /platform/plans 和 /pricing 路由
+  - 修改 `work.md`

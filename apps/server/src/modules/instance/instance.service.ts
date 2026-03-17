@@ -1,5 +1,6 @@
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
 import type { RequestUserContext } from '../../common/auth/access-control';
+import { isPlatformAdmin } from '../../common/auth/access-control';
 import { AccessControlService } from '../../common/auth/access-control.service';
 import { PrismaService } from '../../common/database/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -7,6 +8,7 @@ import { JobService } from '../job/job.service';
 import { RuntimeAdapterService } from '../../adapter/runtime-adapter.service';
 import { extractApiKeyRefs } from '../config/config-validation';
 import { maskSecretPreview } from '../openclaw/openclaw-secret-mask';
+import { SubscriptionService } from '../payment/subscription.service';
 
 const DEFAULT_INSTANCE_SPEC_CODE = 'S';
 const DEFAULT_RUNTIME_VERSION = '2026.2.1';
@@ -60,6 +62,7 @@ export class InstanceService {
     private readonly accessControl: AccessControlService,
     private readonly jobService: JobService,
     private readonly runtimeAdapter: RuntimeAdapterService,
+    private readonly subscriptionService: SubscriptionService,
   ) {}
 
   private async ensureActiveInstanceNameAvailable(tenantId: string, name: unknown, excludeInstanceId?: string) {
@@ -104,6 +107,17 @@ export class InstanceService {
   }
 
   async createInstance(currentUser: RequestUserContext, body: Record<string, unknown>) {
+    if (!isPlatformAdmin(currentUser)) {
+      const quota = await this.subscriptionService.getUserQuota(currentUser.id);
+      if (quota.currentInstances >= quota.maxInstances) {
+        throw new ForbiddenException(`已达到实例上限（${quota.maxInstances}），请升级套餐`);
+      }
+      const requestedSpec = String(body.specCode ?? DEFAULT_INSTANCE_SPEC_CODE);
+      if (!quota.allowedSpecs.includes(requestedSpec)) {
+        throw new ForbiddenException(`当前套餐不支持 ${requestedSpec} 规格，允许: ${quota.allowedSpecs.join(',')}`);
+      }
+    }
+
     const instanceId = `ins_${Date.now()}`;
     const template = body.templateId ? await this.prisma.templateRecord.findFirst({ where: { id: String(body.templateId), status: 'active' } }) : null;
     const templateConfig = (template?.configJson as Record<string, any> | null) ?? null;
