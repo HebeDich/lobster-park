@@ -51,6 +51,7 @@ copy_tree "apps/web/dist" "$RELEASE_DIR/app/apps/web/dist"
 copy_tree "apps/web/package.json" "$RELEASE_DIR/app/apps/web/package.json"
 copy_tree "packages/shared" "$RELEASE_DIR/app/packages/shared"
 copy_tree "packages/browser-bridge-extension" "$RELEASE_DIR/app/packages/browser-bridge-extension"
+copy_tree "packages/browser-bridge-cli" "$RELEASE_DIR/app/packages/browser-bridge-cli"
 mkdir -p "$RELEASE_DIR/app/node_modules"
 copy_tree "node_modules/.pnpm" "$RELEASE_DIR/app/node_modules/.pnpm"
 

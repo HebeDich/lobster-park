@@ -365,8 +365,12 @@ export class OpenClawGatewayProxyService {
 
   private resolveBridgeCliPath(): string | null {
     const candidates = [
+      // 生产环境：/opt/lobster-park/current/app/packages/browser-bridge-cli/browser-bridge.js
+      '/opt/lobster-park/current/app/packages/browser-bridge-cli/browser-bridge.js',
+      // 开发环境：从编译后 dist 目录向上找
       path.resolve(__dirname, '../../../../../packages/browser-bridge-cli/browser-bridge.js'),
       path.resolve(__dirname, '../../../../../../packages/browser-bridge-cli/browser-bridge.js'),
+      // 从 cwd 找（dev 模式）
       path.resolve(process.cwd(), 'packages/browser-bridge-cli/browser-bridge.js'),
       path.resolve(process.cwd(), '../../packages/browser-bridge-cli/browser-bridge.js'),
     ];

@@ -352,3 +352,6 @@
   - 修改 `apps/server/src/modules/browser-bridge/browser-bridge.controller.ts` — 新增 POST cli-execute 端点
   - 修改 `apps/server/src/modules/openclaw/openclaw-gateway-proxy.service.ts` — 注入 BrowserBridgeService、prepareConsoleEnv 增加桥接环境变量注入、新增 resolveBridgeCliPath
   - 修改 `apps/server/src/modules/openclaw/openclaw.module.ts` — imports 增加 BrowserBridgeModule
+  - 修改 `apps/server/prisma/seed.ts` — 新增 skl_browser_bridge 内置 Skill 种子数据
+  - 修改 `scripts/build-linux-release.sh` — 将 packages/browser-bridge-cli 加入发布包打包
+  - 修改 `openclaw-gateway-proxy.service.ts` — resolveBridgeCliPath 增加生产环境路径候选
