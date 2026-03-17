@@ -67,19 +67,7 @@ export class BrowserBridgeController {
   downloadExtension(@Res() res: Response) {
     const extDir = resolveExtensionDir();
     if (!extDir) {
-      res.status(404).json({
-        message: '扩展文件未找到',
-        debug: {
-          __dirname,
-          cwd: process.cwd(),
-          candidates: [
-            path.resolve(__dirname, '../../../../../packages/browser-bridge-extension'),
-            path.resolve(__dirname, '../../../../../../packages/browser-bridge-extension'),
-            path.resolve(process.cwd(), 'packages/browser-bridge-extension'),
-            path.resolve(process.cwd(), '../../packages/browser-bridge-extension'),
-          ],
-        },
-      });
+      res.status(404).json({ message: '扩展文件未找到，请重新构建部署或手动复制 packages/browser-bridge-extension 到部署目录' });
       return;
     }
     const zip = new AdmZip();

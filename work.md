@@ -300,3 +300,4 @@
   - 修改 `apps/server/src/modules/browser-bridge/browser-bridge.controller.ts` — 新增 GET /browser-bridge/download 端点，使用 adm-zip 动态打包扩展目录
   - 新增 `packages/browser-bridge-extension/pack.js` — 独立打包脚本（可选）
   - 复制 `lobster-park-icon-display.png` 到扩展 icons 目录作为 icon16/48/128.png
+  - 修改 `scripts/build-linux-release.sh` — 将 packages/browser-bridge-extension 加入发布包
