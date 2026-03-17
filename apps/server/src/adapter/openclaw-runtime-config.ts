@@ -378,29 +378,48 @@ export type SkillContentItem = {
   storagePath: string | null;
 };
 
-function buildSkillsConfig(skillContents: SkillContentItem[]) {
-  if (skillContents.length === 0) return null;
-  const items = skillContents
-    .filter((item) => item.content)
-    .map((item) => {
-      const content = isRecord(item.content) ? item.content : {};
-      return prune({
-        id: item.id,
-        ...(typeof content.type === 'string' ? { type: content.type } : {}),
-        ...(typeof content.systemPromptAppend === 'string' ? { systemPromptAppend: content.systemPromptAppend } : {}),
-        ...(typeof content.systemPromptPrepend === 'string' ? { systemPromptPrepend: content.systemPromptPrepend } : {}),
-        ...(Array.isArray(content.tools) ? { tools: content.tools } : {}),
-        ...(Array.isArray(content.constraints) ? { constraints: content.constraints } : {}),
-        ...(typeof content.injectionMode === 'string' ? { injectionMode: content.injectionMode } : {}),
-        ...(item.storagePath ? { storagePath: item.storagePath } : {}),
-        ...(typeof content.entry === 'string' ? { entry: content.entry } : {}),
-      });
-    })
-    .filter((item) => Object.keys(item).length > 1);
-  return items.length > 0 ? items : null;
+/**
+ * 将平台管理的 prompt_injection 类 Skill 转为 OpenClaw SKILL.md 文件内容。
+ * 返回 null 表示该 Skill 不适合转为 SKILL.md（非 prompt_injection 类型或无 systemPromptAppend）。
+ */
+export function buildManagedSkillMarkdown(item: SkillContentItem): { skillKey: string; markdown: string } | null {
+  const content = isRecord(item.content) ? item.content : {};
+  if (typeof content.systemPromptAppend !== 'string') return null;
+  const skillKey = item.id.replace(/^skl_/, '');
+  const name = typeof (content as Record<string, unknown>).name === 'string' ? (content as Record<string, unknown>).name as string : skillKey;
+  const description = typeof (content as Record<string, unknown>).description === 'string' ? (content as Record<string, unknown>).description as string : '';
+  let body = content.systemPromptAppend as string;
+  if (Array.isArray(content.constraints) && content.constraints.length > 0) {
+    body += '\n\n### 约束条件\n\n';
+    for (const c of content.constraints) {
+      if (typeof c === 'string') body += `- ${c}\n`;
+    }
+  }
+  return { skillKey, markdown: `---\nname: ${name}\ndescription: ${description}\n---\n\n${body}\n` };
 }
 
-export function toOpenClawRuntimeConfig(platformConfig: AnyJsonValue, options?: { workspaceDir?: string; pluginLoadPaths?: string[]; skillContents?: SkillContentItem[] }) {
+function buildSkillsConfig(skillContents: SkillContentItem[], managedSkillsDir?: string) {
+  if (skillContents.length === 0) return null;
+  const hasManaged = managedSkillsDir && skillContents.some((item) => {
+    const content = isRecord(item.content) ? item.content : {};
+    return typeof content.systemPromptAppend === 'string';
+  });
+  const entries: Record<string, { enabled: true }> = {};
+  for (const item of skillContents) {
+    const skillKey = item.id.replace(/^skl_/, '');
+    entries[skillKey] = { enabled: true };
+  }
+  const result: Record<string, unknown> = {};
+  if (hasManaged) {
+    result.load = { extraDirs: [managedSkillsDir] };
+  }
+  if (Object.keys(entries).length > 0) {
+    result.entries = entries;
+  }
+  return Object.keys(result).length > 0 ? result : null;
+}
+
+export function toOpenClawRuntimeConfig(platformConfig: AnyJsonValue, options?: { workspaceDir?: string; pluginLoadPaths?: string[]; skillContents?: SkillContentItem[]; managedSkillsDir?: string }) {
   const config = asRecord(platformConfig);
   const general = asRecord(config.general);
   const models = asArray(config.models).filter(isRecord);
@@ -436,6 +455,6 @@ export function toOpenClawRuntimeConfig(platformConfig: AnyJsonValue, options?: 
     agents: buildAgentsRuntimeConfig(agents, models, general, options),
     ...(runtimeChannels ? { channels: runtimeChannels } : {}),
     ...(runtimeBindings ? { bindings: runtimeBindings } : {}),
-    ...(options?.skillContents ? (() => { const sc = buildSkillsConfig(options.skillContents); return sc ? { skills: sc } : {}; })() : {}),
+    ...(options?.skillContents ? (() => { const sc = buildSkillsConfig(options.skillContents, options?.managedSkillsDir); return sc ? { skills: sc } : {}; })() : {}),
   } as AnyJsonValue);
 }

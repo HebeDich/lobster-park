@@ -367,3 +367,18 @@
 - **改了哪些文件**：
   - 修改 `apps/server/src/modules/openclaw/openclaw.module.ts` — imports 增加 SkillsModule
   - 修改 `apps/server/src/modules/openclaw/openclaw-gateway-proxy.service.ts` — 注入 SkillsService、prepareConsoleEnv 传入 skillContents
+
+### 修复 OpenClaw skills 配置格式错误（skills expected object, received array）
+
+- **发现什么问题**：OpenClaw 运行时报错 `skills: Invalid input: expected object, received array`。`buildSkillsConfig` 返回数组格式，但 OpenClaw 期望 `skills` 是对象，且 Skill 内容应以 `SKILL.md` 文件形式存在于磁盘上，通过 `skills.load.extraDirs` 加载。
+- **使用了什么方式解决**：
+  1. 新增 `buildManagedSkillMarkdown()` 函数，将 `systemPromptAppend` + `constraints` 转为 SKILL.md frontmatter + markdown 格式
+  2. 修改 `buildSkillsConfig()` 返回 `{ load: { extraDirs: [dir] }, entries: { [key]: { enabled: true } } }` 对象格式
+  3. `toOpenClawRuntimeConfig` options 增加 `managedSkillsDir`
+  4. 三处调用方（`local-process-adapter`、`container-adapter`、`openclaw-gateway-proxy`）在构建运行时配置前写入 SKILL.md 文件到 `managed-skills/` 目录
+  5. 容器模式下：宿主写入 `statePath/home/managed-skills/`，config 中使用容器路径 `/home/node/managed-skills`
+- **改了哪些文件**：
+  - 修改 `apps/server/src/adapter/openclaw-runtime-config.ts` — 新增 buildManagedSkillMarkdown、修改 buildSkillsConfig 和 toOpenClawRuntimeConfig
+  - 修改 `apps/server/src/adapter/local-process-adapter.ts` — writeMaterializedConfig 写入 SKILL.md 并传 managedSkillsDir
+  - 修改 `apps/server/src/adapter/container-adapter.ts` — writeMaterializedConfig 写入 SKILL.md（宿主路径）并传容器路径
+  - 修改 `apps/server/src/modules/openclaw/openclaw-gateway-proxy.service.ts` — prepareConsoleEnv 写入 SKILL.md 并传 managedSkillsDir

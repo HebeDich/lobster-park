@@ -7,7 +7,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../common/database/prisma.service';
 import { buildRuntimeEndpoints, buildRuntimePaths, decodeCipherValue, materializeSecrets, pickAvailablePorts, pickPorts, purgeAgentModelCache, resolveAppTempRootPath } from './local-process-helpers';
 import { OpenClawPluginRuntimeService } from './openclaw-plugin-runtime.service';
-import { toOpenClawRuntimeConfig } from './openclaw-runtime-config';
+import { buildManagedSkillMarkdown, toOpenClawRuntimeConfig } from './openclaw-runtime-config';
 import { RuntimeAdapter } from './runtime-adapter';
 import { validateRuntimeConfigStructure } from '../modules/config/config-validation';
 import type { AnyJsonValue } from '@lobster-park/shared';
@@ -104,10 +104,20 @@ export class LocalProcessAdapter implements RuntimeAdapter {
     const runtimeConfig = materializeSecrets(configJson, secretMap);
     const pluginLoadPaths = await this.pluginRuntimeService.ensureRequiredPluginLoadPaths(runtimeConfig);
     const skillContents = await this.resolveSkillContents(instanceId);
+    const managedSkillsDir = path.join(paths.statePath, 'managed-skills');
+    for (const item of skillContents) {
+      const result = buildManagedSkillMarkdown(item);
+      if (result) {
+        const skillDir = path.join(managedSkillsDir, result.skillKey);
+        await fs.mkdir(skillDir, { recursive: true });
+        await fs.writeFile(path.join(skillDir, 'SKILL.md'), result.markdown, 'utf8');
+      }
+    }
     const openClawConfig = toOpenClawRuntimeConfig(runtimeConfig, {
       workspaceDir: paths.workspacePath,
       pluginLoadPaths,
       skillContents,
+      managedSkillsDir,
     }) as Record<string, AnyJsonValue>;
     const existingGateway = typeof openClawConfig.gateway === 'object' && openClawConfig.gateway !== null
       ? openClawConfig.gateway as Record<string, AnyJsonValue>

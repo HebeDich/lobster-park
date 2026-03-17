@@ -8,7 +8,7 @@ import type { RequestUserContext } from '../../common/auth/access-control';
 import { AccessControlService } from '../../common/auth/access-control.service';
 import { buildRuntimePaths, decodeCipherValue, materializeSecrets, resolveAppTempRootPath } from '../../adapter/local-process-helpers';
 import { OpenClawPluginRuntimeService } from '../../adapter/openclaw-plugin-runtime.service';
-import { toOpenClawRuntimeConfig } from '../../adapter/openclaw-runtime-config';
+import { buildManagedSkillMarkdown, toOpenClawRuntimeConfig } from '../../adapter/openclaw-runtime-config';
 import { BrowserBridgeService } from '../browser-bridge/browser-bridge.service';
 import { SkillsService } from '../skills/skills.service';
 import { buildContainerName, getContainerRuntimePaths } from '../../adapter/container-adapter.helpers';
@@ -224,10 +224,20 @@ export class OpenClawGatewayProxyService {
 
     const pluginLoadPaths = await this.pluginRuntimeService.ensureRequiredPluginLoadPaths(materialized);
     const skillContents = await this.skillsService.getEnabledSkillContents(instanceId);
+    const managedSkillsDir = path.join(runtimePaths.statePath, 'managed-skills');
+    for (const item of skillContents) {
+      const result = buildManagedSkillMarkdown(item);
+      if (result) {
+        const skillDir = path.join(managedSkillsDir, result.skillKey);
+        await fs.mkdir(skillDir, { recursive: true });
+        await fs.writeFile(path.join(skillDir, 'SKILL.md'), result.markdown, 'utf8');
+      }
+    }
     const runtimeConfig = toOpenClawRuntimeConfig(materialized, {
       workspaceDir: runtimePaths.workspacePath,
       pluginLoadPaths,
       skillContents,
+      managedSkillsDir,
     }) as Record<string, unknown>;
     const runtimeTarget = transient
       ? {
