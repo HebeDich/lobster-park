@@ -301,3 +301,35 @@
   - 新增 `packages/browser-bridge-extension/pack.js` — 独立打包脚本（可选）
   - 复制 `lobster-park-icon-display.png` 到扩展 icons 目录作为 icon16/48/128.png
   - 修改 `scripts/build-linux-release.sh` — 将 packages/browser-bridge-extension 加入发布包
+
+### 修复浏览器桥接扩展连接失败问题
+
+- **发现什么问题**：扩展反复连接又断开；用户无法获取有效的鉴权令牌
+- **使用了什么方式解决**：
+  1. 修复扩展 WebSocket 路径：`/api/v1/browser-bridge` → `/ws/v1/browser-bridge`，与后端 main.ts 升级路由匹配
+  2. 新增 `issueBridgeToken` 方法签发 sessionType='bridge' 的专用令牌（有效期 30 天）
+  3. 新增 `POST /browser-bridge/token` 端点供前端调用
+  4. 前端实例详情页新增"生成桥接令牌"按钮 + 令牌展示弹窗
+  5. 后端 token 验证逻辑同时接受 access 和 bridge 类型 session
+- **改了哪些文件**：
+  - 修改 `packages/browser-bridge-extension/background.js` — WebSocket URL 路径修正
+  - 修改 `apps/server/src/modules/browser-bridge/browser-bridge.service.ts` — 新增 issueBridgeToken + 验证逻辑支持 bridge 类型
+  - 修改 `apps/server/src/modules/browser-bridge/browser-bridge.controller.ts` — 新增 POST /browser-bridge/token 端点
+  - 修改 `apps/web/src/pages/instances/InstanceDetailPage.tsx` — 新增生成桥接令牌按钮和弹窗
+
+### 扩展文案修改 + 动态注入平台地址
+
+- **发现什么问题**：扩展 UI 文案使用旧品牌名（龙虾乐园/Lobster Park）；用户需手动输入平台地址
+- **使用了什么方式解决**：
+  1. 品牌名统一：Lobster Browser Bridge → OpenClaw Browser Bridge，龙虾乐园 → OpenClaw，Lobster Park → Claw World
+  2. 字段标签修改：服务器地址 → 平台地址，认证令牌 → 桥接令牌，提示改为真实路径
+  3. 新增 config.json 机制：background.js 首次加载时读取 config.json 中的平台地址作为默认值
+  4. 下载端点动态注入：GET /browser-bridge/download 时读取 WEB_APP_ORIGIN 写入 config.json
+  5. 日志前缀 [LobsterBridge] → [OpenClaw]
+- **改了哪些文件**：
+  - 修改 `packages/browser-bridge-extension/manifest.json` — 品牌名 + web_accessible_resources
+  - 修改 `packages/browser-bridge-extension/popup.html` — 全部文案更新
+  - 修改 `packages/browser-bridge-extension/popup.js` — 注释品牌名
+  - 修改 `packages/browser-bridge-extension/background.js` — 品牌名 + 日志前缀 + config.json 加载
+  - 新增 `packages/browser-bridge-extension/config.json` — 默认配置（空 serverUrl）
+  - 修改 `apps/server/src/modules/browser-bridge/browser-bridge.controller.ts` — 动态注入平台地址 + config.json 加入文件列表

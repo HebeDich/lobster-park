@@ -22,6 +22,8 @@ export function InstanceDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [bridgeConnected, setBridgeConnected] = useState<boolean | null>(null);
+  const [bridgeToken, setBridgeToken] = useState<string | null>(null);
+  const [bridgeTokenOpen, setBridgeTokenOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -276,8 +278,24 @@ export function InstanceDetailPage() {
           {isPlatformAdmin ? <Button type="link"><Link to={`/instances/${id}/usage`}>使用量</Link></Button> : null}
           {isPlatformAdmin ? <Button type="link"><Link to={`/instances/${id}/openclaw/pairing`}>高级排障 / 配对</Link></Button> : null}
           <Button type="link" onClick={() => { window.open('/api/v1/browser-bridge/download', '_blank'); }}>下载浏览器桥接扩展</Button>
+          <Button type="link" loading={actionLoading === 'bridge-token'} onClick={() => {
+            setActionLoading('bridge-token');
+            fetch('/api/v1/browser-bridge/token', { method: 'POST', credentials: 'include' })
+              .then((r) => r.json())
+              .then((json) => { setBridgeToken((json.data ?? json).token ?? ''); setBridgeTokenOpen(true); })
+              .catch((err) => { messageApi.error(err instanceof Error ? err.message : '生成令牌失败'); })
+              .finally(() => { setActionLoading(null); });
+          }}>生成桥接令牌</Button>
         </Space>
       </Card>
+
+      <Modal title="浏览器桥接令牌" open={bridgeTokenOpen} onCancel={() => setBridgeTokenOpen(false)} footer={null}>
+        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+          <Alert type="info" showIcon message="请将以下令牌复制到浏览器扩展中，令牌有效期 30 天。每次生成新令牌会自动撤销旧令牌。" />
+          <Input.TextArea value={bridgeToken ?? ''} readOnly autoSize={{ minRows: 2 }} onClick={(e) => (e.target as HTMLTextAreaElement).select()} />
+          <Button type="primary" onClick={() => { if (bridgeToken) { navigator.clipboard.writeText(bridgeToken).then(() => messageApi.success('已复制到剪贴板')); } }}>复制令牌</Button>
+        </Space>
+      </Modal>
 
       <Drawer open={Boolean(job)} onClose={() => setJob(null)} width={720} title={job?.jobType || '任务详情'}>
         {job ? <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{JSON.stringify(job, null, 2)}</pre> : null}

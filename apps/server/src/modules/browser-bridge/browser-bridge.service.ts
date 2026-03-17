@@ -1,6 +1,6 @@
 import type { IncomingMessage } from 'http';
 import type { Duplex } from 'stream';
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { WebSocketServer, WebSocket } from 'ws';
 import { PrismaService } from '../../common/database/prisma.service';
@@ -183,6 +183,37 @@ export class BrowserBridgeService {
     });
   }
 
+  // ========== 令牌签发 ==========
+
+  /**
+   * 为用户签发桥接专用令牌（有效期 30 天）
+   */
+  async issueBridgeToken(userId: string, tenantId: string): Promise<string> {
+    // 撤销该用户已有的桥接令牌
+    await this.prisma.sessionRecord.updateMany({
+      where: { userId, sessionType: 'bridge', revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    const rawToken = randomBytes(32).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+    const tokenHash = createHash('sha256').update(rawToken).digest('hex');
+    const now = Date.now();
+    const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+
+    await this.prisma.sessionRecord.create({
+      data: {
+        id: `ses_${now}_bridge`,
+        tokenHash,
+        sessionType: 'bridge',
+        userId,
+        tenantId,
+        expiresAt: new Date(now + THIRTY_DAYS),
+      },
+    });
+
+    return rawToken;
+  }
+
   // ========== Token 验证 ==========
 
   private async resolveUserFromToken(token: string | null): Promise<{ userId: string } | null> {
@@ -190,7 +221,7 @@ export class BrowserBridgeService {
     try {
       const tokenHash = createHash('sha256').update(token).digest('hex');
       const session = await this.prisma.sessionRecord.findUnique({ where: { tokenHash } });
-      if (!session || session.sessionType !== 'access' || session.revokedAt || session.expiresAt.getTime() < Date.now()) {
+      if (!session || !['access', 'bridge'].includes(session.sessionType) || session.revokedAt || session.expiresAt.getTime() < Date.now()) {
         return null;
       }
       const user = await this.prisma.user.findUnique({ where: { id: session.userId } });

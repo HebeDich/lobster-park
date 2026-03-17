@@ -1,5 +1,5 @@
 /**
- * Lobster Browser Bridge - Background Service Worker
+ * OpenClaw Browser Bridge - Background Service Worker
  * 负责与云端 BrowserBridge Gateway 建立 WebSocket 连接，接收并执行浏览器指令
  */
 
@@ -17,9 +17,25 @@ const MAX_RECONNECT_DELAY = 30000;
 // 待处理的指令确认队列 (需要用户确认的指令)
 const pendingConfirmations = new Map();
 
-// 从 storage 加载配置
+// 从 config.json 加载预置平台地址
+async function loadDefaultConfig() {
+  try {
+    const resp = await fetch(chrome.runtime.getURL('config.json'));
+    if (resp.ok) return await resp.json();
+  } catch {}
+  return {};
+}
+
+// 从 storage 加载配置（首次使用时以 config.json 为默认值）
 async function loadConfig() {
-  const result = await chrome.storage.local.get(['serverUrl', 'authToken', 'autoConnect']);
+  const result = await chrome.storage.local.get(['serverUrl', 'authToken', 'autoConnect', '_configLoaded']);
+  if (!result._configLoaded) {
+    const defaults = await loadDefaultConfig();
+    if (defaults.serverUrl && !result.serverUrl) {
+      result.serverUrl = defaults.serverUrl;
+      await chrome.storage.local.set({ serverUrl: defaults.serverUrl, _configLoaded: true });
+    }
+  }
   serverUrl = result.serverUrl || '';
   authToken = result.authToken || '';
   return result;
@@ -58,10 +74,10 @@ function connect() {
   broadcastState();
 
   try {
-    const wsUrl = serverUrl.replace(/^http/, 'ws') + '/api/v1/browser-bridge?token=' + encodeURIComponent(authToken);
+    const wsUrl = serverUrl.replace(/^http/, 'ws') + '/ws/v1/browser-bridge?token=' + encodeURIComponent(authToken);
     ws = new WebSocket(wsUrl);
   } catch (err) {
-    console.error('[LobsterBridge] WebSocket 创建失败:', err);
+    console.error('[OpenClaw] WebSocket 创建失败:', err);
     connectionState = 'disconnected';
     broadcastState();
     scheduleReconnect();
@@ -69,7 +85,7 @@ function connect() {
   }
 
   ws.onopen = () => {
-    console.log('[LobsterBridge] 已连接到服务器');
+    console.log('[OpenClaw] 已连接到服务器');
     connectionState = 'connected';
     reconnectAttempts = 0;
     broadcastState();
@@ -88,12 +104,12 @@ function connect() {
         await handleCommand(msg);
       }
     } catch (err) {
-      console.error('[LobsterBridge] 消息处理失败:', err);
+      console.error('[OpenClaw] 消息处理失败:', err);
     }
   };
 
   ws.onclose = (event) => {
-    console.log('[LobsterBridge] 连接关闭:', event.code, event.reason);
+    console.log('[OpenClaw] 连接关闭:', event.code, event.reason);
     ws = null;
     connectionState = 'disconnected';
     broadcastState();
@@ -104,7 +120,7 @@ function connect() {
   };
 
   ws.onerror = (err) => {
-    console.error('[LobsterBridge] WebSocket 错误:', err);
+    console.error('[OpenClaw] WebSocket 错误:', err);
   };
 }
 
@@ -135,12 +151,12 @@ function stopHeartbeat() {
 function scheduleReconnect() {
   if (reconnectTimer) return;
   if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-    console.log('[LobsterBridge] 已达最大重连次数');
+    console.log('[OpenClaw] 已达最大重连次数');
     return;
   }
   const delay = Math.min(BASE_RECONNECT_DELAY * Math.pow(1.5, reconnectAttempts), MAX_RECONNECT_DELAY);
   reconnectAttempts++;
-  console.log(`[LobsterBridge] ${delay}ms 后重连 (第 ${reconnectAttempts} 次)`);
+  console.log(`[OpenClaw] ${delay}ms 后重连 (第 ${reconnectAttempts} 次)`);
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null;
     connect();

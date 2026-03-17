@@ -12,6 +12,7 @@ const EXTENSION_FILES = [
   'background.js',
   'popup.html',
   'popup.js',
+  'config.json',
   'icons/icon16.png',
   'icons/icon48.png',
   'icons/icon128.png',
@@ -61,6 +62,15 @@ export class BrowserBridgeController {
   }
 
   /**
+   * 签发桥接专用令牌（用于扩展连接鉴权，有效期 30 天）
+   */
+  @Post('browser-bridge/token')
+  async issueToken(@CurrentUser() currentUser: RequestUserContext) {
+    const token = await this.bridgeService.issueBridgeToken(currentUser.id, currentUser.tenantId);
+    return { token };
+  }
+
+  /**
    * 下载浏览器桥接扩展 zip 包
    */
   @Get('browser-bridge/download')
@@ -78,10 +88,16 @@ export class BrowserBridgeController {
         zip.addLocalFile(filePath, dirInZip);
       }
     }
+    // 动态注入平台地址到 config.json
+    const platformUrl = process.env.WEB_APP_ORIGIN
+      || process.env.VITE_APP_ORIGIN
+      || process.env.CORS_ORIGINS?.split(',').map((s) => s.trim()).find(Boolean)
+      || '';
+    zip.addFile('config.json', Buffer.from(JSON.stringify({ serverUrl: platformUrl }, null, 2)));
     const buffer = zip.toBuffer();
     res.set({
       'Content-Type': 'application/zip',
-      'Content-Disposition': 'attachment; filename="lobster-browser-bridge.zip"',
+      'Content-Disposition': 'attachment; filename="openclaw-browser-bridge.zip"',
       'Content-Length': String(buffer.length),
     });
     res.send(buffer);

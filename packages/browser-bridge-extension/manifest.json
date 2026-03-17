@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Lobster Browser Bridge",
-  "description": "龙虾乐园浏览器桥接扩展 - 让云端 OpenClaw Agent 安全地与本地浏览器交互",
+  "name": "OpenClaw Browser Bridge",
+  "description": "OpenClaw 浏览器桥接扩展 - 让云端 Agent 安全地与本地浏览器交互",
   "version": "1.0.0",
   "permissions": [
     "activeTab",
@@ -23,6 +23,12 @@
       "128": "icons/icon128.png"
     }
   },
+  "web_accessible_resources": [
+    {
+      "resources": ["config.json"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=360">
-  <title>Lobster Browser Bridge</title>
+  <title>OpenClaw Browser Bridge</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { width: 340px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 13px; color: #333; background: #fff; }
@@ -37,10 +37,10 @@
 </head>
 <body>
   <div class="header">
-    <div class="header-icon">🦞</div>
+    <div class="header-icon">�</div>
     <div>
-      <div class="header-title">Lobster Browser Bridge</div>
-      <div class="header-sub">龙虾乐园浏览器桥接</div>
+      <div class="header-title">OpenClaw Browser Bridge</div>
+      <div class="header-sub">OpenClaw 浏览器桥接</div>
     </div>
   </div>
 
@@ -53,14 +53,14 @@
 
   <div class="form">
     <div class="form-group">
-      <label>服务器地址</label>
-      <input type="text" id="serverUrl" placeholder="https://your-lobster-park.com" />
-      <div class="hint">龙虾乐园的访问地址</div>
+      <label>平台地址</label>
+      <input type="text" id="serverUrl" placeholder="https://your-domain.com" />
+      <div class="hint">OpenClaw 平台的访问地址（下载时已自动填充）</div>
     </div>
     <div class="form-group">
-      <label>认证令牌</label>
-      <input type="password" id="authToken" placeholder="从平台获取的 API Token" />
-      <div class="hint">在龙虾乐园 → 个人设置中获取</div>
+      <label>桥接令牌</label>
+      <input type="password" id="authToken" placeholder="从平台生成的桥接令牌" />
+      <div class="hint">在实例详情页 → 高级功能 → 生成桥接令牌</div>
     </div>
   </div>
 
@@ -69,7 +69,7 @@
     <button id="btnDisconnect" class="btn btn-secondary" style="display:none;">断开</button>
   </div>
 
-  <div class="footer">v1.0.0 · Lobster Park</div>
+  <div class="footer">v1.0.0 · Claw World</div>
 
   <script src="popup.js"></script>
 </body>

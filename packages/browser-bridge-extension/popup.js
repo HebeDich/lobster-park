@@ -1,5 +1,5 @@
 /**
- * Lobster Browser Bridge - Popup Script
+ * OpenClaw Browser Bridge - Popup Script
  * 管理连接配置和状态显示
  */
 
